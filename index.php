@@ -5,6 +5,7 @@ declare(strict_types=1);
 $config = require __DIR__ . '/bootstrap.php';
 $refresh = (int) $config['refresh_seconds'];
 $timezone = (string) $config['timezone'];
+$eventTitle = (string) ($config['event_title'] ?? 'Conference');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -12,7 +13,7 @@ $timezone = (string) $config['timezone'];
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="refresh" content="<?= (int) $refresh ?>">
-    <title>SELF 2026 — Ballroom Schedules</title>
+    <title><?= e($eventTitle) ?> — Ballroom Schedules</title>
     <link rel="stylesheet" href="assets/tv.css">
 </head>
 <body class="page-index" data-timezone="<?= e($timezone) ?>">

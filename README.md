@@ -1,6 +1,6 @@
 # SELF Talk Schedule Display
 
-TV-friendly ballroom schedule boards for [Southeast Linux Fest 2026](https://speakers.southeastlinuxfest.org/southeast-linux-fest-2026/schedule/), powered by the [pretalx API](https://docs.pretalx.org/api/resources/#tag/schedules).
+TV-friendly ballroom schedule boards for [SouthEast LinuxFest](https://southeastlinuxfest.org), powered by the [pretalx API](https://docs.pretalx.org/api/resources/#tag/schedules).
 
 ## Requirements
 
@@ -25,7 +25,7 @@ Pages auto-refresh every 60 seconds; schedule data is cached for 5 minutes to re
 
 ## Configuration
 
-Edit `config.php` to change `pretalx_host`, `event_slug`, timezone, cache TTL, room mappings, or `gold_sponsors` (logo URLs from [SELF sponsors](https://southeastlinuxfest.org/about/sponsors/)). The API base URL is built automatically from host + slug.
+Edit `config.php` to change `event_title`, `pretalx_host`, `event_slug`, timezone, cache TTL, room mappings, or `gold_sponsors` (logo URLs from [SELF sponsors](https://southeastlinuxfest.org/about/sponsors/)). The API base URL is built automatically from host + slug.
 
 Room displays show **session title**, **speaker**, and **abstract/description** from pretalx in the Now/Up Next panels and today’s list.
 
@@ -44,7 +44,7 @@ Schedule filtering uses **America/New_York**. To preview a conference day withou
 3. **Date only** (uses noon that day):  
    `room.php?room=salon-a&now=2026-06-12`
 
-Pretalx slots for SELF 2026 start on **2026-06-12** (and following days). Pick a time that falls inside a real session to see **Now** / **Up Next** highlighted.
+Pretalx slots for SouthEast LinuxFest start on **2026-06-12** (and following days). Pick a time that falls inside a real session to see **Now** / **Up Next** highlighted.
 
 A yellow **Test clock** banner appears while overrides are active. Set `allow_test_clock` back to `false` before go-live.
 

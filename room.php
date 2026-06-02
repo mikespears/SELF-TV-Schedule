@@ -14,6 +14,7 @@ $room = $config['rooms'][$slug];
 $refresh = (int) $config['refresh_seconds'];
 $locale = (string) $config['locale'];
 $timezone = (string) $config['timezone'];
+$eventTitle = (string) ($config['event_title'] ?? 'Conference');
 
 $client = new PretalxClient($config);
 $schedule = new ScheduleService($timezone, $locale);
@@ -63,7 +64,7 @@ if ($error === null) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=1920, height=1080">
     <meta http-equiv="refresh" content="<?= (int) $refresh ?>">
-    <title><?= e($room['label']) ?> — SELF 2026</title>
+    <title><?= e($room['label']) ?> — <?= e($eventTitle) ?></title>
     <?php $cssVersion = is_file(__DIR__ . '/assets/tv.css') ? (int) filemtime(__DIR__ . '/assets/tv.css') : 1; ?>
     <link rel="stylesheet" href="assets/tv.css?v=<?= $cssVersion ?>">
 </head>

@@ -6,6 +6,7 @@ $pretalxHost = 'https://speakers.southeastlinuxfest.org';
 $eventSlug = 'southeast-linux-fest-2026';
 
 return [
+    'event_title' => 'SELF 2026',
     'pretalx_host' => $pretalxHost,
     'event_slug' => $eventSlug,
     'api_base' => rtrim($pretalxHost, '/') . '/api/events/' . $eventSlug,
