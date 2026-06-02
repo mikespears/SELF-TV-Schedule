@@ -1,17 +1,47 @@
 # SELF Talk Schedule Display
 
-TV-friendly ballroom schedule boards for [SouthEast LinuxFest](https://southeastlinuxfest.org), powered by the [pretalx API](https://docs.pretalx.org/api/resources/#tag/schedules).
+TV-friendly schedule boards for ballroom entrances at [SouthEast LinuxFest](https://southeastlinuxfest.org). Schedule data is loaded from the public [pretalx API](https://docs.pretalx.org/api/resources/#tag/schedules) and cached locally to limit API traffic.
+
+## Features
+
+- **Per-room displays** — One URL per ballroom, optimized for a 40″ TV at 1920×1080 (no page scroll)
+- **Now / Up Next** — Current and following session with title, speaker, and description
+- **Upcoming list** — Up to eight remaining sessions for that room today (past sessions hidden)
+- **Gold sponsor bar** — Sponsor logos along the bottom of each room display
+- **Auto-refresh** — Page reloads every 60 seconds; schedule data is refreshed at most every 5 minutes
 
 ## Requirements
 
-- PHP 8.1+ with `json` enabled and `allow_url_fopen=On` (for API fetch)
+- PHP 8.1+ with the `json` extension
+- `allow_url_fopen=On` (used to fetch pretalx)
 - Outbound HTTPS to `speakers.southeastlinuxfest.org`
-- Writable `cache/` directory
+- A writable `cache/` directory
+
+## Deployment
+
+Serve the project root with Apache or nginx and PHP-FPM (or PHP’s built-in server for local testing). The web server user must be able to write to `cache/`.
+
+**Protect the cache directory** (it contains downloaded schedule JSON):
+
+| Server | Action |
+|--------|--------|
+| Apache | `cache/.htaccess` is included (`Require all denied`) |
+| nginx | Add `location ^~ /cache/ { deny all; }` |
+
+**Production checklist**
+
+- Point each TV at the correct ballroom URL (below) in full-screen mode
+- Set `allow_test_clock` to `false` in `config.php`
+- Confirm the on-screen clock matches the conference timezone (`America/New_York` by default), not the TV’s local timezone
+
+API and cache errors are logged via PHP `error_log`.
 
 ## Ballroom URLs
 
-| Room | URL |
-|------|-----|
+Use `index.php` to pick a room during setup. For entrance TVs, open the matching URL directly:
+
+| Ballroom | URL |
+|----------|-----|
 | Salon A (Altispeed) | `room.php?room=salon-a` |
 | Salon B (Rocky Linux) | `room.php?room=salon-b` |
 | Salon C-E (VictoriaMetrics) | `room.php?room=salon-c-e` |
@@ -19,42 +49,50 @@ TV-friendly ballroom schedule boards for [SouthEast LinuxFest](https://southeast
 | Carolina Ballroom (Lounge) | `room.php?room=carolina` |
 | AlmaLinux Classroom | `room.php?room=almalinux` |
 
-Point each entrance TV at the matching URL in **full-screen mode** (1920×1080). The room display is laid out to fit a 40″ 1080p screen without scrolling: Now/Up Next panels show full session details; the list shows up to 8 upcoming sessions only (past sessions are hidden).
-
-Pages auto-refresh every 60 seconds; schedule data is cached for 5 minutes to reduce API load.
+Example: `https://your-host.example/room.php?room=salon-a`
 
 ## Configuration
 
-Edit `config.php` to change `event_title`, `pretalx_host`, `event_slug`, timezone, cache TTL, room mappings, or `gold_sponsors` (logo URLs from [SELF sponsors](https://southeastlinuxfest.org/about/sponsors/)). The API base URL is built automatically from host + slug.
+All settings live in `config.php`.
 
-Room displays show **session title**, **speaker**, and **abstract/description** from pretalx in the Now/Up Next panels and today’s list.
+| Setting | Purpose |
+|---------|---------|
+| `event_title` | Browser tab title suffix (e.g. `SELF 2026`) |
+| `pretalx_host` | pretalx instance base URL |
+| `event_slug` | Event slug on pretalx (API path is built from host + slug) |
+| `timezone` | Schedule and clock timezone (`America/New_York`) |
+| `refresh_seconds` | How often each page auto-reloads |
+| `cache_ttl_seconds` | How long to reuse cached schedule data |
+| `event_logo` | Masthead image in the page header |
+| `gold_sponsors` | Sponsor name, logo URL, and link for the footer bar |
+| `rooms` | Maps URL slug → pretalx room ID, label, and subtitle |
+| `allow_test_clock` | Enable fake date/time for previews (`false` on TVs) |
+| `test_now` | Default fake time when test clock is enabled |
 
-Errors and API failures are written to the PHP error log (`error_log`).
+Sponsor logos for gold tier are listed on the [SELF sponsors page](https://southeastlinuxfest.org/about/sponsors/).
 
-## Testing a specific day or time
+## Previewing a specific day or time
 
-Schedule filtering uses **America/New_York**. To preview a conference day without changing your system clock:
+Schedule times use **America/New_York**. To test without changing the system clock:
 
-1. In `config.php`, set `'allow_test_clock' => true` (leave `false` on production TVs).
-2. Use either:
-   - **URL override** (good for trying different times):  
-     `room.php?room=salon-a&now=2026-06-12T10:30:00`
-   - **Config default**:  
-     `'test_now' => '2026-06-12T10:30:00'`
-3. **Date only** (uses noon that day):  
-   `room.php?room=salon-a&now=2026-06-12`
+1. Set `'allow_test_clock' => true` in `config.php`
+2. Open a room with a time override, for example:  
+   `room.php?room=salon-a&now=2026-06-12T10:30:00`
+3. Or set a default in config: `'test_now' => '2026-06-12T10:30:00'`
+4. For **date only**, use `now=2026-06-12` (defaults to noon that day)
 
-Pretalx slots for SouthEast LinuxFest start on **2026-06-12** (and following days). Pick a time that falls inside a real session to see **Now** / **Up Next** highlighted.
+Pick a time inside a real session to see **Now** and **Up Next** populated. A yellow test banner appears while overrides are active.
 
-A yellow **Test clock** banner appears while overrides are active. Set `allow_test_clock` back to `false` before go-live.
+For SouthEast LinuxFest 2026, pretalx slots begin on **2026-06-12**.
 
-## Deployment
+## Project layout
 
-Serve the project root with Apache or nginx + PHP-FPM. Ensure `cache/` is writable by the web server user.
-
-**Block web access to `cache/`** (contains downloaded schedule JSON):
-
-- Apache: `cache/.htaccess` is included (`Require all denied`).
-- nginx: add `location ^~ /cache/ { deny all; }` in the server block.
-
-The on-screen clock uses `America/New_York` from config, not the TV’s local timezone. Set `allow_test_clock` to `false` on production displays.
+```
+config.php          Settings and room mapping
+index.php           Room picker (setup)
+room.php            Per-ballroom TV display
+lib/                pretalx client and schedule logic
+templates/partials/ Hero, logo, and sponsor partials
+assets/tv.css       Signage styles
+cache/              Cached schedule JSON (not committed)
+```
