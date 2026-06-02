@@ -8,18 +8,6 @@ TV-friendly ballroom schedule boards for [Southeast Linux Fest 2026](https://spe
 - Outbound HTTPS to `speakers.southeastlinuxfest.org`
 - Writable `cache/` directory
 
-## Quick start
-
-```bash
-cd "SELF Talk Schedule Display"
-php -S localhost:8080
-```
-
-Open:
-
-- `http://localhost:8080/` — room picker
-- `http://localhost:8080/room.php?room=salon-a` — Salon A display
-
 ## Ballroom URLs
 
 | Room | URL |
