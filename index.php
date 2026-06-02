@@ -16,10 +16,12 @@ $timezone = (string) $config['timezone'];
     <link rel="stylesheet" href="assets/tv.css">
 </head>
 <body class="page-index" data-timezone="<?= e($timezone) ?>">
-    <header class="site-header">
-        <p class="event-name">Southeast Linux Fest 2026</p>
-        <h1>Ballroom Schedules</h1>
-        <p class="clock" id="clock"></p>
+    <header class="site-header site-header--index">
+        <?php require __DIR__ . '/templates/partials/event-logo.php'; ?>
+        <div class="site-header__index-main">
+            <h1>Ballroom Schedules</h1>
+            <p class="clock" id="clock"></p>
+        </div>
     </header>
 
     <main class="room-grid">

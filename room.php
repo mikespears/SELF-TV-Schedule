@@ -73,8 +73,8 @@ if ($error === null) {
     data-timezone="<?= e($timezone) ?>"
 >
     <header class="site-header site-header--room">
+        <?php require __DIR__ . '/templates/partials/event-logo.php'; ?>
         <div class="site-header__titles">
-            <p class="event-name">Southeast Linux Fest 2026</p>
             <h1><?= e($room['label']) ?></h1>
             <?php if ($room['subtitle'] !== ''): ?>
                 <p class="room-subtitle"><?= e($room['subtitle']) ?></p>

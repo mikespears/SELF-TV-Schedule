@@ -14,6 +14,11 @@ return [
     'cache_ttl_seconds' => 300,
     'cache_dir' => __DIR__ . '/cache',
     'refresh_seconds' => 60,
+    'event_logo' => [
+        'src' => 'https://southeastlinuxfest.org/wp-content/uploads/2026/04/self-fallout-masthead-1.png',
+        'alt' => 'Southeast Linux Fest',
+        'url' => 'https://southeastlinuxfest.org/',
+    ],
     // Testing: set allow_test_clock true locally, then use ?now= or test_now below.
     'allow_test_clock' => false,
     'test_now' => null, // e.g. '2026-06-12T10:30:00' (America/New_York)
