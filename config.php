@@ -31,12 +31,12 @@ return [
         ],
         [
             'name' => 'Rocky Linux',
-            'logo' => 'https://southeastlinuxfest.org/wp-content/uploads/2022/06/rockylinuxlogo-600x228.png',
+            'logo' => 'https://github.com/rocky-linux/branding/blob/main/logo/out/logo-padded-bg_transparent-primary_white-256x.png?raw=true',
             'url' => 'https://rockylinux.org/',
         ],
         [
             'name' => 'Altispeed',
-            'logo' => 'https://southeastlinuxfest.org/wp-content/uploads/2019/06/Altispeed-600x250.jpg',
+            'logo' => 'https://altispeed.com/assets/img/AltispeedLogo.png',
             'url' => 'https://www.altispeed.com/',
         ],
     ],
