@@ -95,6 +95,28 @@ final class ScheduleService
     }
 
     /** @param array<string, mixed> $slot */
+    public function slotDescription(array $slot): string
+    {
+        $submission = $slot['submission'] ?? null;
+        if (!is_array($submission)) {
+            return '';
+        }
+
+        foreach (['abstract', 'description'] as $field) {
+            if (!isset($submission[$field])) {
+                continue;
+            }
+            $text = localize($submission[$field], $this->locale);
+            $text = trim(strip_tags($text));
+            if ($text !== '') {
+                return $text;
+            }
+        }
+
+        return '';
+    }
+
+    /** @param array<string, mixed> $slot */
     public function slotSpeakers(array $slot): string
     {
         $submission = $slot['submission'] ?? null;

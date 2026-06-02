@@ -31,11 +31,15 @@ Open:
 | Carolina Ballroom (Lounge) | `room.php?room=carolina` |
 | AlmaLinux Classroom | `room.php?room=almalinux` |
 
-Point each entrance TV at the matching URL in full-screen mode. Pages auto-refresh every 60 seconds; schedule data is cached for 5 minutes to reduce API load.
+Point each entrance TV at the matching URL in **full-screen mode** (1920×1080). The room display is laid out to fit a 40″ 1080p screen without scrolling: Now/Up Next panels show full session details; the list shows up to 8 upcoming sessions only (past sessions are hidden).
+
+Pages auto-refresh every 60 seconds; schedule data is cached for 5 minutes to reduce API load.
 
 ## Configuration
 
-Edit `config.php` to change `pretalx_host`, `event_slug`, timezone, cache TTL, or room mappings. The API base URL is built automatically from host + slug.
+Edit `config.php` to change `pretalx_host`, `event_slug`, timezone, cache TTL, room mappings, or `gold_sponsors` (logo URLs from [SELF sponsors](https://southeastlinuxfest.org/about/sponsors/)). The API base URL is built automatically from host + slug.
+
+Room displays show **session title**, **speaker**, and **abstract/description** from pretalx in the Now/Up Next panels and today’s list.
 
 Errors and API failures are written to the PHP error log (`error_log`).
 

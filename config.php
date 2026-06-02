@@ -17,6 +17,24 @@ return [
     // Testing: set allow_test_clock true locally, then use ?now= or test_now below.
     'allow_test_clock' => false,
     'test_now' => null, // e.g. '2026-06-12T10:30:00' (America/New_York)
+    // Gold sponsors from https://southeastlinuxfest.org/about/sponsors/
+    'gold_sponsors' => [
+        [
+            'name' => 'VictoriaMetrics',
+            'logo' => 'https://southeastlinuxfest.org/wp-content/uploads/2025/05/vm-ver-asset-purple3-600x371.jpg',
+            'url' => 'https://victoriametrics.com/',
+        ],
+        [
+            'name' => 'Rocky Linux',
+            'logo' => 'https://southeastlinuxfest.org/wp-content/uploads/2022/06/rockylinuxlogo-600x228.png',
+            'url' => 'https://rockylinux.org/',
+        ],
+        [
+            'name' => 'Altispeed',
+            'logo' => 'https://southeastlinuxfest.org/wp-content/uploads/2019/06/Altispeed-600x250.jpg',
+            'url' => 'https://www.altispeed.com/',
+        ],
+    ],
     'rooms' => [
         'salon-a' => [
             'id' => 13,
