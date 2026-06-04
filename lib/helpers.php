@@ -112,8 +112,172 @@ function scheduleIdleHeroMessage(array $view): string
 
 function logScheduleException(Throwable $exception): void
 {
-    error_log(
-        'SELF Schedule Display: ' . $exception->getMessage()
-        . ' in ' . $exception->getFile() . ':' . $exception->getLine()
-    );
+    error_log('SELF Schedule Display: ' . $exception->getMessage());
+}
+
+/**
+ * @param array<string, mixed> $config
+ * @return list<array{name: string, logo: string, url?: string, rooms: 'all'|list<string>}>
+ */
+function sponsorsFromConfig(array $config): array
+{
+    $raw = $config['sponsors'] ?? $config['gold_sponsors'] ?? [];
+
+    if (!is_array($raw)) {
+        return [];
+    }
+
+    $out = [];
+
+    foreach ($raw as $sponsor) {
+        if (!is_array($sponsor)) {
+            continue;
+        }
+
+        $name = trim((string) ($sponsor['name'] ?? ''));
+        $logo = trim((string) ($sponsor['logo'] ?? ''));
+        if ($name === '' || $logo === '') {
+            continue;
+        }
+
+        $rooms = $sponsor['rooms'] ?? 'all';
+        if ($rooms === 'all' || $rooms === '*' || $rooms === [] || $rooms === null) {
+            $rooms = 'all';
+        } elseif (is_array($rooms)) {
+            $rooms = array_values(array_unique(array_filter(array_map(
+                static fn ($slug): string => trim((string) $slug),
+                $rooms
+            ))));
+            if ($rooms === []) {
+                $rooms = 'all';
+            }
+        } else {
+            $rooms = 'all';
+        }
+
+        $entry = [
+            'name' => $name,
+            'logo' => $logo,
+            'rooms' => $rooms,
+        ];
+
+        $url = trim((string) ($sponsor['url'] ?? ''));
+        if ($url !== '') {
+            $entry['url'] = $url;
+        }
+
+        $out[] = $entry;
+    }
+
+    return $out;
+}
+
+/**
+ * @param array<string, mixed> $room pretalx room API object
+ */
+function pretalxRoomDisplayName(array $room, string $locale = 'en'): string
+{
+    $name = localize($room['name'] ?? null, $locale);
+    if ($name !== '') {
+        return $name;
+    }
+
+    $id = (int) ($room['id'] ?? 0);
+
+    return $id > 0 ? 'Room ' . $id : 'Room';
+}
+
+/**
+ * @param list<array<string, mixed>> $pretalxRooms
+ * @return array<int, array<string, mixed>>
+ */
+function pretalxRoomsById(array $pretalxRooms): array
+{
+    $byId = [];
+
+    foreach ($pretalxRooms as $room) {
+        if (!is_array($room)) {
+            continue;
+        }
+        $id = (int) ($room['id'] ?? 0);
+        if ($id > 0) {
+            $byId[$id] = $room;
+        }
+    }
+
+    return $byId;
+}
+
+/**
+ * @param list<array{slug: string, id: mixed, label: string, subtitle: string}> $rooms
+ * @param array<int, array<string, mixed>> $pretalxById
+ * @return list<array{slug: string, id: mixed, label: string, subtitle: string}>
+ */
+function applyPretalxRoomLabels(array $rooms, array $pretalxById, string $locale = 'en'): array
+{
+    foreach ($rooms as &$room) {
+        $id = (int) ($room['id'] ?? 0);
+        if ($id > 0 && isset($pretalxById[$id])) {
+            $room['label'] = pretalxRoomDisplayName($pretalxById[$id], $locale);
+        }
+    }
+    unset($room);
+
+    return $rooms;
+}
+
+function suggestRoomSlug(string $name): string
+{
+    $slug = strtolower(trim($name));
+    $slug = (string) preg_replace('/[^a-z0-9]+/', '-', $slug);
+    $slug = trim($slug, '-');
+
+    if ($slug === '') {
+        return 'room';
+    }
+
+    return substr($slug, 0, 48);
+}
+
+/**
+ * @param list<string> $usedSlugs
+ */
+function uniqueRoomSlug(string $base, array $usedSlugs): string
+{
+    $slug = $base;
+    $suffix = 2;
+
+    while (in_array($slug, $usedSlugs, true)) {
+        $slug = $base . '-' . $suffix;
+        $suffix++;
+    }
+
+    return $slug;
+}
+
+/**
+ * @param array<string, mixed> $config
+ * @return list<array{name: string, logo: string, url?: string}>
+ */
+function sponsorsForRoom(array $config, string $roomSlug): array
+{
+    $display = [];
+
+    foreach (sponsorsFromConfig($config) as $sponsor) {
+        $rooms = $sponsor['rooms'];
+        if ($rooms !== 'all' && (!is_array($rooms) || !in_array($roomSlug, $rooms, true))) {
+            continue;
+        }
+
+        $entry = [
+            'name' => $sponsor['name'],
+            'logo' => $sponsor['logo'],
+        ];
+        if (isset($sponsor['url'])) {
+            $entry['url'] = $sponsor['url'];
+        }
+        $display[] = $entry;
+    }
+
+    return $display;
 }

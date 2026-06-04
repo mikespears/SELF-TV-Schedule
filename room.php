@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 $config = require __DIR__ . '/bootstrap.php';
+Security::sendSecurityHeaders();
 
 $slug = isset($_GET['room']) ? (string) $_GET['room'] : '';
 if ($slug === '' || !isset($config['rooms'][$slug])) {
@@ -46,8 +47,8 @@ try {
 $dateLabel = $now->format('l, F j, Y');
 $lastUpdatedLabel = formatLastUpdated($client->getLastUpdated(), $timezone);
 $idleHeroMessage = scheduleIdleHeroMessage($view);
-/** @var list<array{name: string, logo: string, url?: string}> $goldSponsors */
-$goldSponsors = is_array($config['gold_sponsors'] ?? null) ? $config['gold_sponsors'] : [];
+/** @var list<array{name: string, logo: string, url?: string}> $sponsors */
+$sponsors = sponsorsForRoom($config, $slug);
 
 $listSlots = [];
 if ($error === null) {

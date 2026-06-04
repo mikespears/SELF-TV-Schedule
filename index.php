@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 $config = require __DIR__ . '/bootstrap.php';
+Security::sendSecurityHeaders();
 $refresh = (int) $config['refresh_seconds'];
 $timezone = (string) $config['timezone'];
 $eventTitle = (string) ($config['event_title'] ?? 'Conference');

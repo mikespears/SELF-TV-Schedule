@@ -1,0 +1,425 @@
+/**
+ * Admin UI — same dark theme as assets/tv.css (GitHub-style signage palette).
+ * Load tv.css first for shared :root tokens and base typography.
+ */
+
+body.page-admin {
+    min-height: 100vh;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+body.page-admin a:hover,
+body.page-admin a:focus {
+    text-decoration: underline;
+}
+
+/* --- Header (matches index site-header) --- */
+body.page-admin .admin-header.site-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+}
+
+body.page-admin .admin-header__titles {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+body.page-admin .admin-header__titles h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+body.page-admin .admin-header__subtitle {
+    margin: 0.2rem 0 0;
+    color: var(--muted);
+    font-size: 0.875rem;
+}
+
+body.page-admin .admin-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1.25rem;
+}
+
+body.page-admin .admin-nav a,
+body.page-admin .admin-logout-form button {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+body.page-admin .admin-logout-form {
+    display: inline;
+    margin: 0;
+}
+
+body.page-admin .admin-nav__user {
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+body.page-admin .admin-details {
+    margin: 0;
+}
+
+body.page-admin .admin-details summary {
+    cursor: pointer;
+    color: var(--accent);
+    font-weight: 600;
+}
+
+body.page-admin .admin-details__body {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    min-width: 16rem;
+}
+
+body.page-admin .admin-form--compact .admin-actions {
+    margin-top: 0.75rem;
+}
+
+body.page-admin .admin-form--compact + .admin-form--compact {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+}
+
+/* --- Main layout --- */
+body.page-admin .admin-main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 1.5rem 2rem 2.5rem;
+}
+
+/* --- Flash / banners (matches test-clock & error banners on room pages) --- */
+body.page-admin .admin-flash {
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.25rem;
+    border: 2px solid;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+body.page-admin .admin-flash--success {
+    background: rgba(63, 185, 80, 0.15);
+    border-color: var(--now);
+    color: var(--now);
+}
+
+body.page-admin .admin-flash--error {
+    background: rgba(248, 81, 73, 0.12);
+    border-color: #f85149;
+    color: #f85149;
+}
+
+body.page-admin .admin-flash--warning {
+    background: rgba(210, 153, 34, 0.2);
+    border-color: var(--next);
+    color: var(--next);
+}
+
+body.page-admin .admin-warning {
+    background: rgba(210, 153, 34, 0.2);
+    border: 2px solid var(--next);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    color: var(--next);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+/* --- Sections (matches room-card surfaces) --- */
+body.page-admin .admin-section {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+body.page-admin .admin-section h2 {
+    margin: 0 0 0.35rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+body.page-admin .admin-section h3 {
+    margin: 1.25rem 0 0.5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+body.page-admin .admin-section .hint {
+    color: var(--muted);
+    font-size: 0.875rem;
+    margin: 0 0 1rem;
+}
+
+body.page-admin code {
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    font-size: 0.85em;
+}
+
+/* --- Forms --- */
+body.page-admin .admin-form label {
+    display: block;
+    font-weight: 600;
+    margin: 0.75rem 0 0.25rem;
+    font-size: 0.875rem;
+    color: var(--text);
+}
+
+body.page-admin .admin-form input[type="text"],
+body.page-admin .admin-form input[type="url"],
+body.page-admin .admin-form input[type="number"],
+body.page-admin .admin-form input[type="password"],
+body.page-admin .admin-form input[type="datetime-local"],
+body.page-admin .admin-form select {
+    width: 100%;
+    max-width: 32rem;
+    padding: 0.55rem 0.65rem;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font: inherit;
+    color: var(--text);
+    background: var(--bg);
+}
+
+body.page-admin .admin-form input:focus,
+body.page-admin .admin-form select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+body.page-admin .admin-form input[type="checkbox"] {
+    accent-color: var(--accent);
+    margin-right: 0.35rem;
+}
+
+body.page-admin .admin-form .checkbox-row label {
+    display: inline;
+    font-weight: 600;
+}
+
+body.page-admin .admin-actions {
+    margin-top: 1.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    align-items: center;
+}
+
+body.page-admin button,
+body.page-admin .btn {
+    font: inherit;
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    text-decoration: none;
+    display: inline-block;
+    color: var(--text);
+    font-weight: 600;
+    transition: border-color 0.15s, transform 0.15s;
+}
+
+body.page-admin button:hover,
+body.page-admin .btn:hover {
+    border-color: var(--accent);
+}
+
+body.page-admin button.primary,
+body.page-admin .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg);
+}
+
+body.page-admin button.primary:hover {
+    filter: brightness(1.08);
+}
+
+body.page-admin button.danger,
+body.page-admin .btn.danger {
+    color: #f85149;
+    border-color: #f85149;
+    background: rgba(248, 81, 73, 0.08);
+}
+
+body.page-admin button.danger:hover {
+    background: rgba(248, 81, 73, 0.18);
+}
+
+/* --- Tables --- */
+body.page-admin .admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    margin: 0.5rem 0 1rem;
+}
+
+body.page-admin .admin-table th,
+body.page-admin .admin-table td {
+    border: 1px solid var(--border);
+    padding: 0.45rem 0.65rem;
+    text-align: left;
+}
+
+body.page-admin .admin-table th {
+    background: var(--bg);
+    color: var(--muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+}
+
+body.page-admin .admin-table td {
+    background: var(--surface);
+}
+
+/* --- Repeatable rows --- */
+body.page-admin .sponsor-row,
+body.page-admin .room-row {
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+    background: var(--bg);
+}
+
+body.page-admin .sponsor-row input,
+body.page-admin .room-row input {
+    max-width: 100%;
+}
+
+body.page-admin .sponsor-scope {
+    margin: 1rem 0 0;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+body.page-admin .sponsor-scope legend {
+    padding: 0 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+body.page-admin .sponsor-scope__option {
+    display: inline-block;
+    margin-right: 1.25rem;
+    font-weight: 600;
+}
+
+body.page-admin .sponsor-room-picks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    margin-top: 0.75rem;
+    padding: 0.75rem 1rem;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+}
+
+body.page-admin .sponsor-room-picks__option {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+body.page-admin .link-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+body.page-admin .link-list li {
+    margin: 0.35rem 0;
+}
+
+body.page-admin .input-readonly {
+    opacity: 0.95;
+    cursor: default;
+}
+
+body.page-admin .room-pretalx-select {
+    width: 100%;
+    max-width: 32rem;
+    padding: 0.55rem 0.65rem;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font: inherit;
+    color: var(--text);
+    background: var(--bg);
+}
+
+body.page-admin .admin-form--inline {
+    margin-top: 1rem;
+}
+
+body.page-admin .pretalx-rooms {
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+    overflow-x: auto;
+}
+
+body.page-admin .login-error {
+    color: #f85149;
+    margin-bottom: 1rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+/* --- Login (centered card like room-card) --- */
+body.page-admin.login-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+body.page-admin .login-card {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 24rem;
+}
+
+body.page-admin .login-card h1 {
+    margin: 0 0 1.25rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+body.page-admin .login-card .site-logo {
+    margin-bottom: 1.25rem;
+}
+
+body.page-admin .login-card .site-logo__img {
+    max-height: 64px;
+}

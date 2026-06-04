@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-/** @var list<array{name: string, logo: string, url?: string}> $goldSponsors */
+/** @var list<array{name: string, logo: string, url?: string}> $sponsors */
 
-if ($goldSponsors === []) {
+if ($sponsors === []) {
     return;
 }
 
-$logoCount = count($goldSponsors);
+$logoCount = count($sponsors);
 ?>
 <style>
     .sponsor-bar {
@@ -50,7 +50,7 @@ $logoCount = count($goldSponsors);
 </style>
 <aside class="sponsor-bar" aria-label="Sponsors">
     <div class="sponsor-bar__logos">
-        <?php foreach ($goldSponsors as $sponsor): ?>
+        <?php foreach ($sponsors as $sponsor): ?>
             <div class="sponsor-bar__item">
                 <?php if (!empty($sponsor['url'])): ?>
                     <a class="sponsor-bar__link" href="<?= e((string) $sponsor['url']) ?>" target="_blank" rel="noopener noreferrer">

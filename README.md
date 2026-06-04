@@ -7,7 +7,7 @@ TV-friendly schedule boards for ballroom entrances at [SouthEast LinuxFest](http
 - **Per-room displays** — One URL per ballroom, optimized for a 40″ TV at 1920×1080 (no page scroll)
 - **Now / Up Next** — Current and following session with title, speaker, and description
 - **Upcoming list** — Up to eight remaining sessions for that room today (past sessions hidden)
-- **Gold sponsor bar** — Sponsor logos along the bottom of each room display
+- **Sponsor bar** — Sponsor logos along the bottom of each room display (all rooms or per room)
 - **Auto-refresh** — Page reloads every 60 seconds; schedule data is refreshed at most every 5 minutes
 
 ## Requirements
@@ -31,8 +31,9 @@ Serve the project root with Apache or nginx and PHP-FPM (or PHP’s built-in ser
 **Production checklist**
 
 - Point each TV at the correct ballroom URL (below) in full-screen mode
-- Set `allow_test_clock` to `false` in `config.php`
+- Keep **test clock disabled** in the admin panel (or `allow_test_clock` false in `config.php` with no override)
 - Confirm the on-screen clock matches the conference timezone (`America/New_York` by default), not the TV’s local timezone
+- Protect `/admin/` with HTTPS and a strong password; block direct web access to `data/` (see Admin panel)
 
 API and cache errors are logged via PHP `error_log`.
 
@@ -53,7 +54,7 @@ Example: `https://your-host.example/room.php?room=salon-a`
 
 ## Configuration
 
-All settings live in `config.php`.
+**Defaults** live in `config.php` (committed). **Runtime overrides** from the admin panel are stored in `data/settings.json` (gitignored) and merged on each request.
 
 | Setting | Purpose |
 |---------|---------|
@@ -71,14 +72,73 @@ All settings live in `config.php`.
 
 Sponsor logos for gold tier are listed on the [SELF sponsors page](https://southeastlinuxfest.org/about/sponsors/).
 
+## Admin panel
+
+Multi-user, password-protected settings UI at `admin/` (e.g. `https://your-host.example/admin/`).
+
+### First-time setup
+
+1. Ensure the web server cannot serve files under `data/` directly. Apache: `data/.htaccess` denies all requests. For nginx, see [SECURITY.md](SECURITY.md).
+2. Create a setup token on the server (before exposing `/admin/` publicly):
+
+   ```bash
+   # Example: 32-byte random token
+   openssl rand -hex 32 > data/admin/setup.token
+   chmod 600 data/admin/setup.token
+   ```
+
+3. Open `admin/login.php`, enter the setup token, and **create the first account** (username + password, minimum 10 characters). The token file is deleted after successful setup.
+4. Sign in and adjust settings. Changes are written to `data/settings.json`.
+
+See [SECURITY.md](SECURITY.md) for the full deployment checklist.
+
+**Migrating from the old single-password file:** If you already have `data/admin.secrets.php` with a `password_hash`, it is imported automatically on first load as user `admin` with the same password. You can then add more users under **Users**.
+
+### Admin authentication
+
+| Piece | Location |
+|-------|----------|
+| User accounts | `data/admin/users.json` (gitignored) |
+| Example structure | `data/admin/users.example.json` |
+| Login | `admin/login.php` (username + password) |
+| User management | `admin/users.php` (add, disable, delete, change passwords) |
+
+Features:
+
+- Per-user bcrypt password hashes (`password_hash` / `password_verify`)
+- Session cookie: HttpOnly, SameSite=Strict, secure flag on HTTPS
+- CSRF tokens on all admin POST forms
+- Lockout after 5 failed sign-in attempts per IP (15 minutes)
+- First-account setup requires `data/admin/setup.token`
+- Sessions expire after 8 hours idle; password changes invalidate existing sessions
+- POST logout with CSRF (no GET logout)
+- Cannot delete or disable the last active admin user
+
+### What you can manage
+
+- Test clock and default preview time
+- Event title, timezone, refresh and cache intervals, masthead logo
+- Sponsors (name, logo URL, website URL, all rooms or selected rooms)
+- Room slugs, pretalx room picker, auto-filled names from pretalx, and optional subtitles
+- pretalx host and event slug
+- Clear schedule cache (forces refetch on next display load)
+- Admin user accounts (`admin/users.php`)
+
+### Security
+
+- Use **HTTPS** and **strong passwords** if `/admin/` is reachable on your network.
+- Keep `allow_test_clock` **off** on production TVs; the dashboard warns when it is enabled.
+- Do not commit `data/admin/users.json`, `data/admin.secrets.php`, or `data/settings.json` (they are gitignored).
+- Restrict admin access by firewall or VPN when possible.
+
 ## Previewing a specific day or time
 
 Schedule times use **America/New_York**. To test without changing the system clock:
 
-1. Set `'allow_test_clock' => true` in `config.php`
+1. Enable **Allow test clock** in the admin panel (or set `'allow_test_clock' => true` in `config.php`)
 2. Open a room with a time override, for example:  
    `room.php?room=salon-a&now=2026-06-12T10:30:00`
-3. Or set a default in config: `'test_now' => '2026-06-12T10:30:00'`
+3. Or set a default test time in the admin panel (or `'test_now'` in config)
 4. For **date only**, use `now=2026-06-12` (defaults to noon that day)
 
 Pick a time inside a real session to see **Now** and **Up Next** populated. A yellow test banner appears while overrides are active.
@@ -88,11 +148,15 @@ For SouthEast LinuxFest 2026, pretalx slots begin on **2026-06-12**.
 ## Project layout
 
 ```
-config.php          Settings and room mapping
+config.php          Default settings (committed)
+data/               Admin users, settings overrides (gitignored)
+admin/              Login, dashboard, user management
 index.php           Room picker (setup)
 room.php            Per-ballroom TV display
-lib/                pretalx client and schedule logic
+lib/                Config store, pretalx client, schedule logic
 templates/partials/ Hero, logo, and sponsor partials
+templates/admin/    Admin layout and dashboard sections
 assets/tv.css       Signage styles
+assets/admin.css    Admin UI styles
 cache/              Cached schedule JSON (not committed)
 ```
