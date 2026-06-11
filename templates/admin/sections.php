@@ -7,6 +7,7 @@ declare(strict_types=1);
 /** @var list<array<string, mixed>> $pretalxRooms */
 /** @var string|null $pretalxRoomsError */
 /** @var bool $overridesExist */
+/** @var string $settingsStorage */
 /** @var string $testNowInput */
 /** @var string $testNowQuery */
 /** @var AdminAuth $auth */
@@ -62,7 +63,10 @@ $wifiEnabled = !empty($wifiConfig['enabled']);
         <div class="admin-stat">
             <p class="admin-stat__label">Dashboard settings</p>
             <p class="admin-stat__value"><?= $overridesExist ? 'Custom' : 'Defaults' ?></p>
-            <p class="admin-stat__meta"><?= $overridesExist ? 'Saved changes in effect' : 'Using installation defaults' ?></p>
+            <p class="admin-stat__meta">
+                <?= $overridesExist ? 'Saved changes in effect' : 'Using installation defaults' ?>
+                · <?= $settingsStorage === 'database' ? 'MySQL' : 'settings.json' ?>
+            </p>
         </div>
     </div>
 

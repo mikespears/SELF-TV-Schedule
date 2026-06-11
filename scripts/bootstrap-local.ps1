@@ -1,4 +1,4 @@
-# One-time local setup: directories + default dev admin account.
+# One-time local setup: directories, MySQL config, and default dev admin account.
 param(
     [string]$Username = "admin",
     [string]$Password = "local-dev-only",
@@ -15,14 +15,38 @@ foreach ($dir in @("cache", "data", "data\admin")) {
     }
 }
 
+$dbPath = Join-Path $Root "data\database.php"
+if ($UseDocker -and -not (Test-Path $dbPath)) {
+    @"
+<?php
+return [
+    'host' => 'db',
+    'port' => 3306,
+    'database' => 'self_schedule',
+    'username' => 'self_schedule',
+    'password' => 'self_schedule',
+    'charset' => 'utf8mb4',
+];
+"@ | Set-Content -Path $dbPath -Encoding UTF8
+    Write-Host "Created data/database.php for Docker MySQL." -ForegroundColor Green
+}
+
 if ($UseDocker) {
     Set-Location $Root
+    docker compose up -d db
+    docker compose run --rm web php scripts/setup-database.php
+    docker compose run --rm web php scripts/migrate-to-mysql.php
     docker compose run --rm web php scripts/reset-admin.php $Password $Username
 } else {
-    $php = (Get-Command php -ErrorAction SilentlyContinue)?.Source
+    $phpCmd = Get-Command php -ErrorAction SilentlyContinue
+    $php = if ($phpCmd) { $phpCmd.Source } else { $null }
     if (-not $php) {
-        Write-Host "PHP not found. Run with -UseDocker or install PHP first." -ForegroundColor Yellow
+        Write-Host "PHP not found. Run with -UseDocker or install PHP with pdo_mysql first." -ForegroundColor Yellow
         exit 1
+    }
+    if (Test-Path $dbPath) {
+        & $php (Join-Path $Root "scripts\setup-database.php")
+        & $php (Join-Path $Root "scripts\migrate-to-mysql.php")
     }
     & $php (Join-Path $Root "scripts\reset-admin.php") $Password $Username
 }

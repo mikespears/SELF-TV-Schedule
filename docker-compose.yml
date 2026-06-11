@@ -1,9 +1,32 @@
 services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: self_schedule
+      MYSQL_USER: self_schedule
+      MYSQL_PASSWORD: self_schedule
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   web:
-    image: php:8.3-cli
+    build: .
     working_dir: /var/www
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
       - .:/var/www
     ports:
       - "8080:8080"
     command: php -S 0.0.0.0:8080 -t /var/www
+
+volumes:
+  mysql_data:

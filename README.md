@@ -54,7 +54,7 @@ Example: `https://your-host.example/room.php?room=salon-a`
 
 ## Configuration
 
-**Defaults** live in `config.php` (committed). **Runtime overrides** from the admin panel are stored in `data/settings.json` (gitignored) and merged on each request.
+**Defaults** live in `config.php` (committed). **Runtime overrides** from the admin panel are stored in **MySQL** (when `data/database.php` is configured) or in `data/settings.json` (gitignored) and merged on each request.
 
 | Setting | Purpose |
 |---------|---------|
@@ -88,9 +88,20 @@ Multi-user, password-protected settings UI at `admin/` (e.g. `https://your-host.
    ```
 
 3. Open `admin/login.php`, enter the setup token, and **create the first account** (username + password, minimum 10 characters). The token file is deleted after successful setup.
-4. Sign in and adjust settings. Changes are written to `data/settings.json`.
+4. Sign in and adjust settings. Changes are saved to MySQL or `data/settings.json`, depending on configuration.
 
 See [SECURITY.md](SECURITY.md) for the full deployment checklist.
+
+### MySQL storage (recommended for production)
+
+1. Create a MySQL database and user with `CREATE`, `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on that database.
+2. Copy `data/database.example.php` to `data/database.php` and set host, database name, username, and password.
+3. Run `php scripts/setup-database.php` once to create tables (also runs automatically on first connection).
+4. If you already have file-based data, run `php scripts/migrate-to-mysql.php` to import `data/admin/users.json` and `data/settings.json`.
+
+When `data/database.php` exists, admin users and dashboard settings use the database exclusively. File-based stores are not read on each request (existing JSON files are imported automatically only when the matching database tables are empty).
+
+**Local Docker dev:** `.\scripts\bootstrap-local.ps1 -UseDocker` creates `data/database.php`, starts MySQL, runs setup/migration, and creates the default `admin` account. Then `docker compose up` serves the app on port 8080.
 
 **Migrating from the old single-password file:** If you already have `data/admin.secrets.php` with a `password_hash`, it is imported automatically on first load as user `admin` with the same password. You can then add more users under **Users**.
 
@@ -98,7 +109,8 @@ See [SECURITY.md](SECURITY.md) for the full deployment checklist.
 
 | Piece | Location |
 |-------|----------|
-| User accounts | `data/admin/users.json` (gitignored) |
+| User accounts | MySQL `admin_users` table, or `data/admin/users.json` (gitignored) when no database is configured |
+| Database config | `data/database.php` (gitignored); example in `data/database.example.php` |
 | Example structure | `data/admin/users.example.json` |
 | Login | `admin/login.php` (username + password) |
 | User management | `admin/users.php` (add, disable, delete, change passwords) |
@@ -128,7 +140,7 @@ Features:
 
 - Use **HTTPS** and **strong passwords** if `/admin/` is reachable on your network.
 - Keep `allow_test_clock` **off** on production TVs; the dashboard warns when it is enabled.
-- Do not commit `data/admin/users.json`, `data/admin.secrets.php`, or `data/settings.json` (they are gitignored).
+- Do not commit `data/database.php`, `data/admin/users.json`, `data/admin.secrets.php`, or `data/settings.json` (they are gitignored).
 - Restrict admin access by firewall or VPN when possible.
 
 ## Previewing a specific day or time
@@ -149,7 +161,8 @@ For SouthEast LinuxFest 2026, pretalx slots begin on **2026-06-12**.
 
 ```
 config.php          Default settings (committed)
-data/               Admin users, settings overrides (gitignored)
+data/               Database config, admin users, settings (gitignored)
+database/schema.sql Reference schema for app_settings and admin_users
 admin/              Login, dashboard, user management
 index.php           Room picker (setup)
 room.php            Per-ballroom TV display

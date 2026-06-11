@@ -17,6 +17,7 @@ if (PHP_SAPI !== 'cli') {
 $root = dirname(__DIR__);
 require $root . '/lib/helpers.php';
 require $root . '/lib/Security.php';
+require $root . '/lib/Database.php';
 require $root . '/lib/AdminUserStore.php';
 
 $password = (string) ($argv[1] ?? '');

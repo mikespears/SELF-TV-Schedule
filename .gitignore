@@ -2,12 +2,14 @@
 !/cache/.gitignore
 !/cache/.htaccess
 /data/settings.json
+/data/database.php
 /data/admin.secrets.php
 /data/admin/users.json
 /data/admin/login-rates.json
 /data/admin/setup.token
 !/data/.gitkeep
 !/data/.htaccess
+!/data/database.example.php
 !/data/admin.secrets.example.php
 !/data/admin/users.example.json
 !/data/admin/setup.token.example

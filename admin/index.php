@@ -10,6 +10,7 @@ $config = $store->load();
 $flash = adminConsumeFlash();
 $cacheInfo = $store->getCacheInfo();
 $overridesExist = $store->hasOverrides();
+$settingsStorage = $store->getStorageBackend();
 
 $pretalxRooms = [];
 $pretalxRoomsError = null;

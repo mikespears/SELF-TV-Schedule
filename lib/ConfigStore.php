@@ -38,28 +38,11 @@ final class ConfigStore
     /** @return array<string, mixed> */
     public function readOverrides(): array
     {
-        if (!is_file($this->settingsPath)) {
-            return [];
+        if ($this->usesDatabase()) {
+            return $this->readOverridesFromDatabase();
         }
 
-        $body = @file_get_contents($this->settingsPath);
-        if ($body === false) {
-            return [];
-        }
-
-        try {
-            $decoded = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            error_log('SELF Schedule Display: invalid settings.json');
-
-            return [];
-        }
-
-        if (!is_array($decoded)) {
-            return [];
-        }
-
-        return $this->sanitizeOverrides($decoded);
+        return $this->readOverridesFromFile();
     }
 
     /** @param array<string, mixed> $patch */
@@ -77,6 +60,12 @@ final class ConfigStore
         }
 
         $merged = array_replace_recursive($current, $validated);
+
+        if ($this->usesDatabase()) {
+            $this->writeOverridesToDatabase($merged);
+
+            return;
+        }
 
         $json = json_encode($merged, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
         if ($json === false) {
@@ -108,11 +97,20 @@ final class ConfigStore
 
     public function getSettingsPath(): string
     {
-        return $this->settingsPath;
+        return $this->usesDatabase() ? 'mysql://app_settings' : $this->settingsPath;
+    }
+
+    public function getStorageBackend(): string
+    {
+        return $this->usesDatabase() ? 'database' : 'file';
     }
 
     public function hasOverrides(): bool
     {
+        if ($this->usesDatabase()) {
+            return $this->readOverridesFromDatabase() !== [];
+        }
+
         return is_file($this->settingsPath);
     }
 
@@ -526,6 +524,78 @@ final class ConfigStore
     private function requireUrl(mixed $value, string $field): string
     {
         return Security::validateHttpsUrl(trim((string) $value), $field, resolveDns: true);
+    }
+
+    private function usesDatabase(): bool
+    {
+        return Database::isConfigured($this->rootDir);
+    }
+
+    /** @return array<string, mixed> */
+    private function readOverridesFromFile(): array
+    {
+        if (!is_file($this->settingsPath)) {
+            return [];
+        }
+
+        $body = @file_get_contents($this->settingsPath);
+        if ($body === false) {
+            return [];
+        }
+
+        try {
+            $decoded = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            error_log('SELF Schedule Display: invalid settings.json');
+
+            return [];
+        }
+
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        return $this->sanitizeOverrides($decoded);
+    }
+
+    /** @return array<string, mixed> */
+    private function readOverridesFromDatabase(): array
+    {
+        try {
+            $pdo = Database::connection($this->rootDir);
+        } catch (Throwable $exception) {
+            error_log('SELF Schedule Display: database settings read failed — ' . $exception->getMessage());
+
+            return [];
+        }
+
+        $raw = $pdo->query('SELECT settings_json FROM app_settings WHERE id = 1')->fetchColumn();
+        if (!is_string($raw) || $raw === '' || $raw === '{}' || $raw === '[]') {
+            return [];
+        }
+
+        try {
+            $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            error_log('SELF Schedule Display: invalid app_settings.settings_json');
+
+            return [];
+        }
+
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        return $this->sanitizeOverrides($decoded);
+    }
+
+    /** @param array<string, mixed> $overrides */
+    private function writeOverridesToDatabase(array $overrides): void
+    {
+        $json = json_encode($overrides, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        $pdo = Database::connection($this->rootDir);
+        $stmt = $pdo->prepare('UPDATE app_settings SET settings_json = :settings_json WHERE id = 1');
+        $stmt->execute(['settings_json' => $json]);
     }
 
     /**

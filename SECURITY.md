@@ -13,7 +13,8 @@ This document summarizes the threat model, controls, and deployment checklist fo
 
 | Area | Control |
 |------|---------|
-| Admin auth | Per-user password hashes (`password_hash` / `password_verify`) in `data/admin/users.json` |
+| Admin auth | Per-user password hashes (`password_hash` / `password_verify`) in MySQL `admin_users` or `data/admin/users.json` when no database is configured |
+| Settings storage | Dashboard overrides in MySQL `app_settings` or `data/settings.json` when no database is configured |
 | Sessions | `HttpOnly`, `SameSite=Strict`, `Secure` on HTTPS (port 443), ID regeneration on login |
 | Session invalidation | `auth_version` incremented on password change; idle timeout 8 hours |
 | CSRF | Token on all admin POST forms (including logout) |
@@ -43,7 +44,8 @@ This document summarizes the threat model, controls, and deployment checklist fo
 4. Keep `allow_test_clock` **false** on production TVs.
 5. Run PHP-FPM as a dedicated user; avoid world-readable files under `data/`.
 6. Behind a reverse proxy, configure the proxy to pass the real client IP to PHP (`REMOTE_ADDR`) or accept that login rate limits apply per proxy connection.
-7. Delete legacy `data/admin.secrets.php` after migration to `users.json`.
+7. Delete legacy `data/admin.secrets.php` after migration to `users.json` or MySQL.
+8. For MySQL deployments: keep `data/database.php` out of version control; use a dedicated DB user with least privilege; prefer TLS to the database when the server is remote.
 
 ### nginx snippets
 
