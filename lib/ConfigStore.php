@@ -67,7 +67,7 @@ final class ConfigStore
     {
         $current = $this->readOverrides();
         $validated = $this->validateOverrides($patch);
-        $replaceKeys = ['rooms', 'sponsors', 'gold_sponsors', 'event_logo'];
+        $replaceKeys = ['rooms', 'sponsors', 'gold_sponsors', 'event_logo', 'messages', 'wifi'];
 
         foreach ($replaceKeys as $key) {
             if (array_key_exists($key, $validated)) {
@@ -213,6 +213,10 @@ final class ConfigStore
             $out['allow_test_clock'] = filter_var($input['allow_test_clock'], FILTER_VALIDATE_BOOLEAN);
         }
 
+        if (array_key_exists('show_speaker_avatars', $input)) {
+            $out['show_speaker_avatars'] = filter_var($input['show_speaker_avatars'], FILTER_VALIDATE_BOOLEAN);
+        }
+
         if (array_key_exists('test_now', $input)) {
             $out['test_now'] = $this->validateTestNow($input['test_now']);
         }
@@ -231,6 +235,16 @@ final class ConfigStore
 
         if (array_key_exists('rooms', $input) && is_array($input['rooms'])) {
             $out['rooms'] = $this->validateRooms($input['rooms']);
+        }
+
+        if (array_key_exists('messages', $input) && is_array($input['messages'])) {
+            $roomSlugs = $this->roomSlugsFromInput($input);
+            $out['messages'] = $this->validateMessages($input['messages'], $roomSlugs);
+        }
+
+        if (array_key_exists('wifi', $input) && is_array($input['wifi'])) {
+            $roomSlugs = $this->roomSlugsFromInput($input);
+            $out['wifi'] = $this->validateWifi($input['wifi'], $roomSlugs);
         }
 
         return $out;
@@ -300,7 +314,7 @@ final class ConfigStore
             $entry = [
                 'name' => $name,
                 'logo' => $this->requireUrl($logo, 'sponsor logo'),
-                'rooms' => $this->validateSponsorRooms($sponsor['rooms'] ?? 'all', $knownRoomSlugs),
+                'rooms' => $this->validateRoomScope($sponsor['rooms'] ?? 'all', $knownRoomSlugs, 'sponsor rooms'),
             ];
             $url = trim((string) ($sponsor['url'] ?? ''));
             if ($url !== '') {
@@ -316,14 +330,14 @@ final class ConfigStore
      * @param list<string> $knownRoomSlugs
      * @return 'all'|list<string>
      */
-    private function validateSponsorRooms(mixed $rooms, array $knownRoomSlugs): string|array
+    private function validateRoomScope(mixed $rooms, array $knownRoomSlugs, string $fieldLabel): string|array
     {
         if ($rooms === 'all' || $rooms === '*' || $rooms === null || $rooms === '') {
             return 'all';
         }
 
         if (!is_array($rooms)) {
-            throw new InvalidArgumentException('Sponsor rooms must be "all" or a list of room slugs.');
+            throw new InvalidArgumentException($fieldLabel . ' must be "all" or a list of room slugs.');
         }
 
         $slugs = [];
@@ -333,7 +347,7 @@ final class ConfigStore
                 continue;
             }
             if (preg_match('/^[a-z0-9-]+$/', $slug) !== 1) {
-                throw new InvalidArgumentException('Invalid room slug in sponsor assignment.');
+                throw new InvalidArgumentException('Invalid room slug in ' . $fieldLabel . '.');
             }
             if ($knownRoomSlugs !== [] && !in_array($slug, $knownRoomSlugs, true)) {
                 throw new InvalidArgumentException('Unknown room slug: ' . $slug);
@@ -347,6 +361,84 @@ final class ConfigStore
         }
 
         return $slugs;
+    }
+
+    /**
+     * @param array<int, mixed> $messages
+     * @param list<string> $knownRoomSlugs
+     * @return list<array{title: string, body: string, placement: string, rooms: 'all'|list<string>, enabled: bool}>
+     */
+    private function validateMessages(array $messages, array $knownRoomSlugs = []): array
+    {
+        $out = [];
+
+        foreach ($messages as $message) {
+            if (!is_array($message)) {
+                continue;
+            }
+
+            $title = trim((string) ($message['title'] ?? ''));
+            $body = trim((string) ($message['body'] ?? ''));
+            if ($title === '' && $body === '') {
+                continue;
+            }
+
+            $placement = (string) ($message['placement'] ?? 'below');
+            if ($placement !== 'override' && $placement !== 'below') {
+                throw new InvalidArgumentException('Message placement must be "override" or "below".');
+            }
+
+            $out[] = [
+                'title' => $title,
+                'body' => $body,
+                'placement' => $placement,
+                'rooms' => $this->validateRoomScope($message['rooms'] ?? 'all', $knownRoomSlugs, 'message rooms'),
+                'enabled' => !empty($message['enabled']),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param array<string, mixed> $wifi
+     * @param list<string> $knownRoomSlugs
+     * @return array<string, mixed>
+     */
+    private function validateWifi(array $wifi, array $knownRoomSlugs = []): array
+    {
+        $enabled = !empty($wifi['enabled']);
+        $ssid = trim((string) ($wifi['ssid'] ?? ''));
+        $security = strtoupper(trim((string) ($wifi['security'] ?? 'WPA')));
+        if (!in_array($security, ['WPA', 'WEP', 'NOPASS'], true)) {
+            throw new InvalidArgumentException('WiFi security must be WPA, WEP, or nopass.');
+        }
+
+        $placement = (string) ($wifi['placement'] ?? 'below');
+        if ($placement !== 'override' && $placement !== 'below') {
+            throw new InvalidArgumentException('WiFi placement must be "override" or "below".');
+        }
+
+        if ($enabled && $ssid === '') {
+            throw new InvalidArgumentException('WiFi SSID is required when WiFi is enabled.');
+        }
+
+        $label = trim((string) ($wifi['label'] ?? ''));
+        if ($label === '') {
+            $label = 'WiFi';
+        }
+
+        return [
+            'enabled' => $enabled,
+            'ssid' => $ssid,
+            'password' => (string) ($wifi['password'] ?? ''),
+            'security' => $security,
+            'hidden' => !empty($wifi['hidden']),
+            'rooms' => $this->validateRoomScope($wifi['rooms'] ?? 'all', $knownRoomSlugs, 'WiFi rooms'),
+            'placement' => $placement,
+            'label' => $label,
+            'show_password' => !empty($wifi['show_password']),
+        ];
     }
 
     /**

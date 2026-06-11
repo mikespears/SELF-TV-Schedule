@@ -281,3 +281,206 @@ function sponsorsForRoom(array $config, string $roomSlug): array
 
     return $display;
 }
+
+/**
+ * @param 'all'|list<string>|mixed $rooms
+ */
+function itemAppliesToRoom(mixed $rooms, string $roomSlug): bool
+{
+    if ($rooms === 'all' || $rooms === '*' || $rooms === null || $rooms === '') {
+        return true;
+    }
+
+    if (!is_array($rooms)) {
+        return false;
+    }
+
+    if ($rooms === []) {
+        return true;
+    }
+
+    return in_array($roomSlug, $rooms, true);
+}
+
+/**
+ * @param array<string, mixed> $config
+ * @return list<array{title: string, body: string, placement: string, rooms: 'all'|list<string>, enabled: bool}>
+ */
+function messagesFromConfig(array $config): array
+{
+    $raw = $config['messages'] ?? [];
+    if (!is_array($raw)) {
+        return [];
+    }
+
+    $out = [];
+    foreach ($raw as $message) {
+        if (!is_array($message)) {
+            continue;
+        }
+
+        $body = trim((string) ($message['body'] ?? ''));
+        $title = trim((string) ($message['title'] ?? ''));
+        if ($body === '' && $title === '') {
+            continue;
+        }
+
+        $placement = (string) ($message['placement'] ?? 'below');
+        if ($placement !== 'override' && $placement !== 'below') {
+            $placement = 'below';
+        }
+
+        $rooms = $message['rooms'] ?? 'all';
+        if ($rooms === 'all' || $rooms === '*' || $rooms === [] || $rooms === null) {
+            $rooms = 'all';
+        } elseif (!is_array($rooms)) {
+            $rooms = 'all';
+        }
+
+        $out[] = [
+            'title' => $title,
+            'body' => $body,
+            'placement' => $placement,
+            'rooms' => $rooms,
+            'enabled' => !empty($message['enabled']),
+        ];
+    }
+
+    return $out;
+}
+
+/**
+ * @param array<string, mixed> $config
+ * @return list<array{title: string, body: string, placement: string, rooms: 'all'|list<string>, enabled: bool}>
+ */
+function messagesForRoom(array $config, string $roomSlug, string $placement): array
+{
+    $messages = [];
+    foreach (messagesFromConfig($config) as $message) {
+        if (!$message['enabled'] || $message['placement'] !== $placement) {
+            continue;
+        }
+        if (!itemAppliesToRoom($message['rooms'], $roomSlug)) {
+            continue;
+        }
+        $messages[] = $message;
+    }
+
+    return $messages;
+}
+
+/**
+ * @param array<string, mixed> $config
+ * @return array{
+ *     enabled: bool,
+ *     ssid: string,
+ *     password: string,
+ *     security: string,
+ *     hidden: bool,
+ *     rooms: 'all'|list<string>,
+ *     placement: string,
+ *     label: string,
+ *     show_password: bool
+ * }|null
+ */
+function wifiFromConfig(array $config): ?array
+{
+    $wifi = $config['wifi'] ?? null;
+    if (!is_array($wifi) || empty($wifi['enabled'])) {
+        return null;
+    }
+
+    $ssid = trim((string) ($wifi['ssid'] ?? ''));
+    if ($ssid === '') {
+        return null;
+    }
+
+    $security = strtoupper(trim((string) ($wifi['security'] ?? 'WPA')));
+    if (!in_array($security, ['WPA', 'WEP', 'NOPASS'], true)) {
+        $security = 'WPA';
+    }
+
+    $rooms = $wifi['rooms'] ?? 'all';
+    if ($rooms === 'all' || $rooms === '*' || $rooms === [] || $rooms === null) {
+        $rooms = 'all';
+    } elseif (!is_array($rooms)) {
+        $rooms = 'all';
+    }
+
+    $placement = (string) ($wifi['placement'] ?? 'below');
+    if ($placement !== 'override' && $placement !== 'below') {
+        $placement = 'below';
+    }
+
+    $label = trim((string) ($wifi['label'] ?? ''));
+    if ($label === '') {
+        $label = 'WiFi';
+    }
+
+    return [
+        'enabled' => true,
+        'ssid' => $ssid,
+        'password' => (string) ($wifi['password'] ?? ''),
+        'security' => $security,
+        'hidden' => !empty($wifi['hidden']),
+        'rooms' => $rooms,
+        'placement' => $placement,
+        'label' => $label,
+        'show_password' => !array_key_exists('show_password', $wifi) || !empty($wifi['show_password']),
+    ];
+}
+
+/**
+ * @param array<string, mixed> $config
+ * @return array{
+ *     enabled: bool,
+ *     ssid: string,
+ *     password: string,
+ *     security: string,
+ *     hidden: bool,
+ *     rooms: 'all'|list<string>,
+ *     placement: string,
+ *     label: string,
+ *     show_password: bool,
+ *     qr_payload: string
+ * }|null
+ */
+function wifiForRoom(array $config, string $roomSlug): ?array
+{
+    $wifi = wifiFromConfig($config);
+    if ($wifi === null || !itemAppliesToRoom($wifi['rooms'], $roomSlug)) {
+        return null;
+    }
+
+    $wifi['qr_payload'] = buildWifiQrPayload(
+        $wifi['ssid'],
+        $wifi['password'],
+        $wifi['security'],
+        $wifi['hidden']
+    );
+
+    return $wifi;
+}
+
+function escapeWifiField(string $value): string
+{
+    return str_replace(['\\', ';', ',', '"'], ['\\\\', '\;', '\,', '\"'], $value);
+}
+
+function buildWifiQrPayload(string $ssid, string $password, string $security, bool $hidden): string
+{
+    $security = strtoupper($security);
+    if (!in_array($security, ['WPA', 'WEP', 'NOPASS'], true)) {
+        $security = 'WPA';
+    }
+
+    $parts = ['WIFI:T:' . $security, 'S:' . escapeWifiField($ssid)];
+    if ($security !== 'NOPASS' && $password !== '') {
+        $parts[] = 'P:' . escapeWifiField($password);
+    }
+    if ($hidden) {
+        $parts[] = 'H:true';
+    }
+
+    return implode(';', $parts) . ';;';
+}

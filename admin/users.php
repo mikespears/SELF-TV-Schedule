@@ -78,12 +78,11 @@ function changeAdminPassword(AdminUserStore $store, string $actingUserId): void
         throw new InvalidArgumentException('User not found.');
     }
 
-    if ($target['id'] !== $actingUserId) {
-        // Changing another user's password requires current password confirmation
+    if ($target['id'] === $actingUserId) {
         $actingUser = $store->findById($actingUserId);
         $currentPassword = (string) ($_POST['current_password'] ?? '');
         if ($actingUser === null || !$store->verifyPassword($actingUser, $currentPassword)) {
-            throw new InvalidArgumentException('Your current password is required to change another user\'s password.');
+            throw new InvalidArgumentException('Current password is incorrect.');
         }
     }
 

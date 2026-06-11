@@ -20,11 +20,15 @@ if (!isset($rooms) || !is_array($rooms)) {
 }
 $locale = (string) ($config['locale'] ?? 'en');
 $allowTest = !empty($config['allow_test_clock']);
+$showSpeakerAvatars = !array_key_exists('show_speaker_avatars', $config)
+    || !empty($config['show_speaker_avatars']);
+$messages = messagesFromConfig($config);
+$wifiConfig = is_array($config['wifi'] ?? null) ? $config['wifi'] : [];
+$wifiEnabled = !empty($wifiConfig['enabled']);
 ?>
 
 <section class="admin-section" id="overview">
     <h2>Overview</h2>
-    <p class="hint">Runtime settings<?= $overridesExist ? ' include saved overrides from data/settings.json' : ' use defaults from config.php' ?>.</p>
 
     <?php if ($allowTest): ?>
         <div class="admin-warning">
@@ -32,50 +36,63 @@ $allowTest = !empty($config['allow_test_clock']);
         </div>
     <?php endif; ?>
 
-    <table class="admin-table">
-        <tbody>
-            <tr>
-                <th>Schedule cache</th>
-                <td>
-                    <?php if ($cacheInfo['exists']): ?>
-                        Present — <?= (int) $cacheInfo['slot_count'] ?> slots,
-                        updated <?= e(formatLastUpdated($cacheInfo['mtime'], $timezone)) ?>
-                        (<?= e($timezone) ?>)
-                    <?php else: ?>
-                        Not cached yet (will fetch on next room load)
-                    <?php endif; ?>
-                </td>
-            </tr>
-            <tr>
-                <th>API base</th>
-                <td><code><?= e((string) ($config['api_base'] ?? '')) ?></code></td>
-            </tr>
-        </tbody>
-    </table>
+    <div class="admin-stat-grid">
+        <div class="admin-stat">
+            <p class="admin-stat__label">Schedule cache</p>
+            <p class="admin-stat__value">
+                <?php if ($cacheInfo['exists']): ?>
+                    <?= (int) $cacheInfo['slot_count'] ?> slots
+                <?php else: ?>
+                    Not cached
+                <?php endif; ?>
+            </p>
+            <p class="admin-stat__meta">
+                <?php if ($cacheInfo['exists']): ?>
+                    Updated <?= e(formatLastUpdated($cacheInfo['mtime'], $timezone)) ?> (<?= e($timezone) ?>)
+                <?php else: ?>
+                    Fetches on next room load
+                <?php endif; ?>
+            </p>
+        </div>
+        <div class="admin-stat">
+            <p class="admin-stat__label">Schedule source</p>
+            <p class="admin-stat__value"><?= e((string) ($config['event_slug'] ?? '')) ?></p>
+            <p class="admin-stat__meta"><?= e((string) ($config['pretalx_host'] ?? '')) ?></p>
+        </div>
+        <div class="admin-stat">
+            <p class="admin-stat__label">Dashboard settings</p>
+            <p class="admin-stat__value"><?= $overridesExist ? 'Custom' : 'Defaults' ?></p>
+            <p class="admin-stat__meta"><?= $overridesExist ? 'Saved changes in effect' : 'Using installation defaults' ?></p>
+        </div>
+    </div>
 
-    <h3>Display links</h3>
-    <ul class="link-list">
-        <li><a href="../index.php" target="_blank" rel="noopener">index.php</a> — room picker</li>
+    <h3 class="admin-subheading">TV displays</h3>
+    <div class="display-link-grid">
+        <a class="display-link display-link--all" href="../index.php" target="_blank" rel="noopener">
+            <span class="display-link__title">Room picker</span>
+            <span class="display-link__meta">All ballrooms</span>
+        </a>
         <?php foreach ($rooms as $slug => $room): ?>
             <?php
             $roomUrl = '../room.php?room=' . rawurlencode((string) $slug);
             if ($allowTest && $testNowQuery !== '') {
                 $roomUrl .= '&now=' . rawurlencode($testNowQuery);
             }
+            $subtitle = trim((string) ($room['subtitle'] ?? ''));
             ?>
-            <li>
-                <a href="<?= e($roomUrl) ?>" target="_blank" rel="noopener">
-                    <?= e((string) ($room['label'] ?? $slug)) ?>
-                </a>
-                <span class="hint">(<code><?= e((string) $slug) ?></code>)</span>
-            </li>
+            <a class="display-link" href="<?= e($roomUrl) ?>" target="_blank" rel="noopener">
+                <span class="display-link__title"><?= e((string) ($room['label'] ?? $slug)) ?></span>
+                <?php if ($subtitle !== ''): ?>
+                    <span class="display-link__meta"><?= e($subtitle) ?></span>
+                <?php endif; ?>
+            </a>
         <?php endforeach; ?>
-    </ul>
+    </div>
 </section>
 
 <section class="admin-section" id="test-mode">
     <h2>Test mode</h2>
-    <p class="hint">Preview schedules at a specific time. Leave test time empty to use only <code>?now=</code> on URLs.</p>
+    <p class="hint">Preview schedules at a specific time. Leave the default test time empty to rely on the time parameter in preview URLs only.</p>
 
     <form method="post" action="save.php" class="admin-form">
         <?= $auth->csrfField() ?>
@@ -92,7 +109,7 @@ $allowTest = !empty($config['allow_test_clock']);
         <input type="datetime-local" id="test_now" name="test_now" value="<?= e($testNowInput) ?>">
 
         <?php if ($testNowQuery !== ''): ?>
-            <p class="hint">Preview links append <code>&amp;now=<?= e($testNowQuery) ?></code> when test clock is enabled.</p>
+            <p class="hint">TV preview links include your saved test time while test clock is enabled.</p>
         <?php endif; ?>
 
         <div class="admin-actions">
@@ -107,27 +124,48 @@ $allowTest = !empty($config['allow_test_clock']);
         <?= $auth->csrfField() ?>
         <input type="hidden" name="action" value="event">
 
-        <label for="event_title">Event title</label>
-        <input type="text" id="event_title" name="event_title" value="<?= e((string) ($config['event_title'] ?? '')) ?>" required>
+        <div class="admin-form-grid">
+            <div class="admin-form-field admin-form-field--wide">
+                <label for="event_title">Event title</label>
+                <input type="text" id="event_title" name="event_title" value="<?= e((string) ($config['event_title'] ?? '')) ?>" required>
+            </div>
+            <div class="admin-form-field">
+                <label for="timezone">Timezone</label>
+                <input type="text" id="timezone" name="timezone" value="<?= e($timezone) ?>" required>
+            </div>
+            <div class="admin-form-field">
+                <label for="refresh_seconds">Page refresh (seconds)</label>
+                <input type="number" id="refresh_seconds" name="refresh_seconds" min="1" value="<?= e((string) ($config['refresh_seconds'] ?? '60')) ?>" required>
+            </div>
+            <div class="admin-form-field">
+                <label for="cache_ttl_seconds">Schedule cache TTL (seconds)</label>
+                <input type="number" id="cache_ttl_seconds" name="cache_ttl_seconds" min="1" value="<?= e((string) ($config['cache_ttl_seconds'] ?? '300')) ?>" required>
+            </div>
+            <div class="admin-form-field admin-form-field--wide">
+                <div class="checkbox-row">
+                    <label>
+                        <input type="checkbox" name="show_speaker_avatars" value="1"<?= $showSpeakerAvatars ? ' checked' : '' ?>>
+                        Show speaker profile pictures in Now / Up Next
+                    </label>
+                </div>
+            </div>
+        </div>
 
-        <label for="timezone">Timezone</label>
-        <input type="text" id="timezone" name="timezone" value="<?= e($timezone) ?>" required>
-
-        <label for="refresh_seconds">Page refresh (seconds)</label>
-        <input type="number" id="refresh_seconds" name="refresh_seconds" min="1" value="<?= e((string) ($config['refresh_seconds'] ?? '60')) ?>" required>
-
-        <label for="cache_ttl_seconds">Schedule cache TTL (seconds)</label>
-        <input type="number" id="cache_ttl_seconds" name="cache_ttl_seconds" min="1" value="<?= e((string) ($config['cache_ttl_seconds'] ?? '300')) ?>" required>
-
-        <h3>Event logo</h3>
-        <label for="event_logo_src">Image URL</label>
-        <input type="url" id="event_logo_src" name="event_logo_src" value="<?= e((string) ($eventLogo['src'] ?? '')) ?>" required>
-
-        <label for="event_logo_alt">Alt text</label>
-        <input type="text" id="event_logo_alt" name="event_logo_alt" value="<?= e((string) ($eventLogo['alt'] ?? '')) ?>" required>
-
-        <label for="event_logo_url">Link URL (optional)</label>
-        <input type="url" id="event_logo_url" name="event_logo_url" value="<?= e((string) ($eventLogo['url'] ?? '')) ?>">
+        <h3 class="admin-subheading">Event logo</h3>
+        <div class="admin-form-grid">
+            <div class="admin-form-field admin-form-field--wide">
+                <label for="event_logo_src">Image URL</label>
+                <input type="url" id="event_logo_src" name="event_logo_src" value="<?= e((string) ($eventLogo['src'] ?? '')) ?>" required>
+            </div>
+            <div class="admin-form-field">
+                <label for="event_logo_alt">Alt text</label>
+                <input type="text" id="event_logo_alt" name="event_logo_alt" value="<?= e((string) ($eventLogo['alt'] ?? '')) ?>" required>
+            </div>
+            <div class="admin-form-field admin-form-field--wide">
+                <label for="event_logo_url">Link URL (optional)</label>
+                <input type="url" id="event_logo_url" name="event_logo_url" value="<?= e((string) ($eventLogo['url'] ?? '')) ?>">
+            </div>
+        </div>
 
         <div class="admin-actions">
             <button type="submit" class="primary">Save event settings</button>
@@ -137,13 +175,13 @@ $allowTest = !empty($config['allow_test_clock']);
 
 <section class="admin-section" id="sponsors">
     <h2>Sponsors</h2>
-    <p class="hint">Logo and website fields must be full <code>https://</code> URLs. Assign each sponsor to all rooms or selected rooms only.</p>
+    <p class="hint">Logo and website URLs must use HTTPS. Assign each sponsor to all rooms or selected rooms only.</p>
 
     <form method="post" action="save.php" class="admin-form" id="sponsors-form">
         <?= $auth->csrfField() ?>
         <input type="hidden" name="action" value="sponsors">
 
-        <div id="sponsor-rows">
+        <div id="sponsor-rows" class="repeatable-rows">
             <?php foreach ($sponsors as $index => $sponsor): ?>
                 <?php
                 $sponsorRooms = $sponsor['rooms'] ?? 'all';
@@ -238,10 +276,186 @@ $allowTest = !empty($config['allow_test_clock']);
     </template>
 </section>
 
+<section class="admin-section" id="messages">
+    <h2>Messages</h2>
+    <p class="hint">Post announcements on room TVs. <strong>Replace schedule</strong> hides the session list for matching rooms. <strong>Below schedule</strong> adds content under the list. Replace-schedule content takes priority over below-schedule items on the same display.</p>
+
+    <form method="post" action="save.php" class="admin-form" id="messages-form">
+        <?= $auth->csrfField() ?>
+        <input type="hidden" name="action" value="messages">
+        <div id="message-rows" class="repeatable-rows">
+            <?php foreach ($messages as $index => $message): ?>
+                <?php
+                $messageRooms = $message['rooms'] ?? 'all';
+                $scopeAll = $messageRooms === 'all';
+                $selectedSlugs = is_array($messageRooms) ? $messageRooms : [];
+                ?>
+                <div class="message-row" data-message-row>
+                    <div class="checkbox-row">
+                        <label>
+                            <input type="checkbox" name="message_enabled[<?= (int) $index ?>]" value="1"<?= !empty($message['enabled']) ? ' checked' : '' ?>>
+                            Enabled
+                        </label>
+                    </div>
+
+                    <label>Title (optional)</label>
+                    <input type="text" name="message_title[]" value="<?= e((string) ($message['title'] ?? '')) ?>">
+
+                    <label>Message</label>
+                    <textarea name="message_body[]" rows="3"><?= e((string) ($message['body'] ?? '')) ?></textarea>
+
+                    <label>Placement</label>
+                    <select name="message_placement[]">
+                        <option value="below"<?= ($message['placement'] ?? 'below') === 'below' ? ' selected' : '' ?>>Below schedule</option>
+                        <option value="override"<?= ($message['placement'] ?? '') === 'override' ? ' selected' : '' ?>>Replace schedule</option>
+                    </select>
+
+                    <fieldset class="room-scope">
+                        <legend>Show on</legend>
+                        <label class="room-scope__option">
+                            <input type="radio" name="message_scope[<?= (int) $index ?>]" value="all" data-room-scope<?= $scopeAll ? ' checked' : '' ?>>
+                            All rooms
+                        </label>
+                        <label class="room-scope__option">
+                            <input type="radio" name="message_scope[<?= (int) $index ?>]" value="rooms" data-room-scope<?= !$scopeAll ? ' checked' : '' ?>>
+                            Selected rooms
+                        </label>
+                    </fieldset>
+
+                    <div class="room-scope-picks" data-room-scope-picks<?= $scopeAll ? ' hidden' : '' ?>>
+                        <?php foreach ($rooms as $slug => $room): ?>
+                            <label class="room-scope-picks__option">
+                                <input
+                                    type="checkbox"
+                                    name="message_rooms[<?= (int) $index ?>][]"
+                                    value="<?= e((string) $slug) ?>"
+                                    <?= in_array((string) $slug, $selectedSlugs, true) ? 'checked' : '' ?>
+                                >
+                                <?= e((string) ($room['label'] ?? $slug)) ?>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <div class="admin-actions">
+                        <button type="button" class="danger" data-remove-message>Remove</button>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+
+        <div class="admin-actions">
+            <button type="button" id="add-message">Add message</button>
+            <button type="submit" class="primary">Save messages</button>
+        </div>
+    </form>
+
+    <template id="message-template">
+        <div class="message-row" data-message-row>
+            <div class="checkbox-row">
+                <label>
+                    <input type="checkbox" name="message_enabled[__IDX__]" value="1" checked>
+                    Enabled
+                </label>
+            </div>
+
+            <label>Title (optional)</label>
+            <input type="text" name="message_title[]" value="">
+
+            <label>Message</label>
+            <textarea name="message_body[]" rows="3"></textarea>
+
+            <label>Placement</label>
+            <select name="message_placement[]">
+                <option value="below" selected>Below schedule</option>
+                <option value="override">Replace schedule</option>
+            </select>
+
+            <fieldset class="room-scope">
+                <legend>Show on</legend>
+                <label class="room-scope__option">
+                    <input type="radio" name="message_scope[__IDX__]" value="all" data-room-scope checked>
+                    All rooms
+                </label>
+                <label class="room-scope__option">
+                    <input type="radio" name="message_scope[__IDX__]" value="rooms" data-room-scope>
+                    Selected rooms
+                </label>
+            </fieldset>
+
+            <div class="room-scope-picks" data-room-scope-picks hidden>
+                <?php foreach ($rooms as $slug => $room): ?>
+                    <label class="room-scope-picks__option">
+                        <input type="checkbox" name="message_rooms[__IDX__][]" value="<?= e((string) $slug) ?>">
+                        <?= e((string) ($room['label'] ?? $slug)) ?>
+                    </label>
+                <?php endforeach; ?>
+            </div>
+
+            <div class="admin-actions">
+                <button type="button" class="danger" data-remove-message>Remove</button>
+            </div>
+        </div>
+    </template>
+</section>
+
+<section class="admin-section" id="wifi">
+    <h2>WiFi QR code</h2>
+    <p class="hint">Show a scannable WiFi QR code on room displays. Guests can scan to join without typing the network name or password.</p>
+
+    <form method="post" action="save.php" class="admin-form" id="wifi-form">
+        <?= $auth->csrfField() ?>
+        <input type="hidden" name="action" value="wifi">
+
+        <div class="wifi-settings">
+            <div class="checkbox-row">
+                <label>
+                    <input type="checkbox" name="wifi_enabled" value="1"<?= $wifiEnabled ? ' checked' : '' ?>>
+                    Show WiFi QR code on displays
+                </label>
+            </div>
+
+            <label for="wifi_label">Label</label>
+            <input type="text" id="wifi_label" name="wifi_label" value="<?= e((string) ($wifiConfig['label'] ?? 'WiFi')) ?>">
+
+            <label for="wifi_ssid">Network name (SSID)</label>
+            <input type="text" id="wifi_ssid" name="wifi_ssid" value="<?= e((string) ($wifiConfig['ssid'] ?? '')) ?>" autocomplete="off">
+
+            <label for="wifi_password">Password</label>
+            <input type="text" id="wifi_password" name="wifi_password" value="<?= e((string) ($wifiConfig['password'] ?? '')) ?>" autocomplete="off">
+
+            <label for="wifi_security">Security</label>
+            <select id="wifi_security" name="wifi_security">
+                <?php $wifiSecurity = strtoupper((string) ($wifiConfig['security'] ?? 'WPA')); ?>
+                <option value="WPA"<?= $wifiSecurity === 'WPA' ? ' selected' : '' ?>>WPA / WPA2 / WPA3</option>
+                <option value="WEP"<?= $wifiSecurity === 'WEP' ? ' selected' : '' ?>>WEP</option>
+                <option value="nopass"<?= $wifiSecurity === 'NOPASS' ? ' selected' : '' ?>>Open network</option>
+            </select>
+
+            <div class="checkbox-row">
+                <label>
+                    <input type="checkbox" name="wifi_hidden" value="1"<?= !empty($wifiConfig['hidden']) ? ' checked' : '' ?>>
+                    Hidden network
+                </label>
+            </div>
+
+            <div class="checkbox-row">
+                <label>
+                    <input type="checkbox" name="wifi_show_password" value="1"<?= !array_key_exists('show_password', $wifiConfig) || !empty($wifiConfig['show_password']) ? ' checked' : '' ?>>
+                    Show password on screen
+                </label>
+            </div>
+        </div>
+
+        <div class="admin-actions">
+            <button type="submit" class="primary">Save WiFi</button>
+        </div>
+    </form>
+</section>
+
 <section class="admin-section" id="rooms">
     <h2>Rooms</h2>
     <p class="hint">
-        URL slugs appear in TV bookmarks (<code>room.php?room=…</code>). Display names are pulled from pretalx automatically;
+        Each room maps to a pretalx space. Display names sync from pretalx when you save;
         use <strong>Subtitle</strong> for custom ballroom text (e.g. sponsor ballroom names).
     </p>
 
@@ -361,8 +575,8 @@ $allowTest = !empty($config['allow_test_clock']);
 </section>
 
 <section class="admin-section" id="pretalx">
-    <h2>Pretalx connection</h2>
-    <p class="hint">API base is derived from host and event slug on save.</p>
+    <h2>Schedule connection</h2>
+    <p class="hint">Connects to your pretalx event for room names and session data.</p>
 
     <form method="post" action="save.php" class="admin-form">
         <?= $auth->csrfField() ?>
@@ -390,111 +604,3 @@ $allowTest = !empty($config['allow_test_clock']);
         </div>
     </form>
 </section>
-
-<script>
-(function () {
-    function bindRemove(container, selector, attr) {
-        container.addEventListener('click', function (event) {
-            var btn = event.target.closest(selector);
-            if (!btn) return;
-            var row = btn.closest('[' + attr + ']');
-            if (row) row.remove();
-        });
-    }
-
-    function bindSponsorScope(row) {
-        var picks = row.querySelector('[data-sponsor-room-picks]');
-        var radios = row.querySelectorAll('[data-sponsor-scope]');
-        function syncScope() {
-            var checked = row.querySelector('[data-sponsor-scope]:checked');
-            if (picks) {
-                picks.hidden = !checked || checked.value !== 'rooms';
-            }
-        }
-        radios.forEach(function (radio) {
-            radio.addEventListener('change', syncScope);
-        });
-        syncScope();
-    }
-
-    function renumberSponsorRows() {
-        var sponsorRows = document.getElementById('sponsor-rows');
-        if (!sponsorRows) {
-            return;
-        }
-        sponsorRows.querySelectorAll('[data-sponsor-row]').forEach(function (row, idx) {
-            row.querySelectorAll('[data-sponsor-scope]').forEach(function (radio) {
-                radio.name = 'sponsor_scope[' + idx + ']';
-            });
-            row.querySelectorAll('.sponsor-room-picks__option input[type="checkbox"]').forEach(function (box) {
-                box.name = 'sponsor_rooms[' + idx + '][]';
-            });
-        });
-    }
-
-    var sponsorRows = document.getElementById('sponsor-rows');
-    var sponsorTemplate = document.getElementById('sponsor-template');
-    if (sponsorRows && sponsorTemplate) {
-        bindRemove(sponsorRows, '[data-remove-sponsor]', 'data-sponsor-row');
-        sponsorRows.addEventListener('click', function (event) {
-            if (event.target.closest('[data-remove-sponsor]')) {
-                setTimeout(renumberSponsorRows, 0);
-            }
-        });
-        sponsorRows.querySelectorAll('[data-sponsor-row]').forEach(bindSponsorScope);
-        renumberSponsorRows();
-        document.getElementById('add-sponsor')?.addEventListener('click', function () {
-            var idx = sponsorRows.querySelectorAll('[data-sponsor-row]').length;
-            var html = sponsorTemplate.innerHTML.replace(/__IDX__/g, String(idx));
-            var wrap = document.createElement('div');
-            wrap.innerHTML = html.trim();
-            var row = wrap.firstElementChild;
-            if (row) {
-                sponsorRows.appendChild(row);
-                bindSponsorScope(row);
-                renumberSponsorRows();
-            }
-        });
-    }
-
-    function bindPretalxRoomSelect(row) {
-        var select = row.querySelector('[data-room-pretalx-select]');
-        if (!select) {
-            return;
-        }
-        function syncFromPretalx() {
-            var opt = select.options[select.selectedIndex];
-            var idInput = row.querySelector('[data-room-id]');
-            var labelInput = row.querySelector('[data-room-label]');
-            var slugInput = row.querySelector('[data-room-slug]');
-            if (!opt || opt.value === '') {
-                if (idInput) idInput.value = '';
-                if (labelInput) labelInput.value = '';
-                return;
-            }
-            if (idInput) idInput.value = opt.value;
-            if (labelInput) labelInput.value = opt.dataset.label || '';
-            if (slugInput && !slugInput.value && opt.dataset.slug) {
-                slugInput.value = opt.dataset.slug;
-            }
-        }
-        select.addEventListener('change', syncFromPretalx);
-        syncFromPretalx();
-    }
-
-    var roomRows = document.getElementById('room-rows');
-    var roomTemplate = document.getElementById('room-template');
-    if (roomRows && roomTemplate) {
-        bindRemove(roomRows, '[data-remove-room]', 'data-room-row');
-        roomRows.querySelectorAll('[data-room-row]').forEach(bindPretalxRoomSelect);
-        document.getElementById('add-room')?.addEventListener('click', function () {
-            var node = roomTemplate.content.cloneNode(true);
-            roomRows.appendChild(node);
-            var row = roomRows.lastElementChild;
-            if (row) {
-                bindPretalxRoomSelect(row);
-            }
-        });
-    }
-})();
-</script>

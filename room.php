@@ -17,7 +17,14 @@ $locale = (string) $config['locale'];
 $timezone = (string) $config['timezone'];
 $eventTitle = (string) ($config['event_title'] ?? 'Conference');
 
-$client = new PretalxClient($config);
+$overrideMessages = messagesForRoom($config, $slug, 'override');
+$belowMessages = messagesForRoom($config, $slug, 'below');
+$wifi = wifiForRoom($config, $slug);
+$wifiOverride = $wifi !== null && $wifi['placement'] === 'override';
+$wifiBelow = $wifi !== null && $wifi['placement'] === 'below';
+$hasOverride = $overrideMessages !== [] || $wifiOverride;
+$loadWifiScripts = $wifi !== null;
+
 $schedule = new ScheduleService($timezone, $locale);
 $now = resolveReferenceNow($config);
 $testClock = isTestClockActive($config, $now);
@@ -25,38 +32,53 @@ $testClock = isTestClockActive($config, $now);
 $error = null;
 $view = ['now' => null, 'up_next' => null, 'today' => []];
 $staleNotice = false;
+$client = null;
+$lastUpdatedLabel = '';
 
-try {
-    $allSlots = $client->getSlots();
+if (!$hasOverride) {
+    $client = new PretalxClient($config);
 
-    if ($client->hasLoadError()) {
-        $error = 'Unable to load schedule. Retrying shortly.';
-    } else {
-        if ($client->usedStaleCache() || $client->hadIncompleteFetch()) {
-            $staleNotice = true;
+    try {
+        $allSlots = $client->getSlots();
+
+        if ($client->hasLoadError()) {
+            $error = 'Unable to load schedule. Retrying shortly.';
+        } else {
+            if ($client->usedStaleCache() || $client->hadIncompleteFetch()) {
+                $staleNotice = true;
+            }
+
+            $roomSlots = $schedule->slotsForRoom($allSlots, (int) $room['id']);
+            $view = $schedule->buildRoomView($roomSlots, $now);
         }
-
-        $roomSlots = $schedule->slotsForRoom($allSlots, (int) $room['id']);
-        $view = $schedule->buildRoomView($roomSlots, $now);
+    } catch (Throwable $exception) {
+        logScheduleException($exception);
+        $error = 'Unable to load schedule. Retrying shortly.';
     }
-} catch (Throwable $exception) {
-    logScheduleException($exception);
-    $error = 'Unable to load schedule. Retrying shortly.';
+
+    $lastUpdatedLabel = formatLastUpdated($client->getLastUpdated(), $timezone);
 }
 
 $dateLabel = $now->format('l, F j, Y');
-$lastUpdatedLabel = formatLastUpdated($client->getLastUpdated(), $timezone);
 $idleHeroMessage = scheduleIdleHeroMessage($view);
 /** @var list<array{name: string, logo: string, url?: string}> $sponsors */
 $sponsors = sponsorsForRoom($config, $slug);
 
 $listSlots = [];
-if ($error === null) {
+if ($error === null && !$hasOverride) {
     $listSlots = array_values(array_filter(
         $view['today'],
         static fn (array $slot): bool => $schedule->slotStatus($slot, $now) !== 'past'
     ));
     $listSlots = array_slice($listSlots, 0, 8);
+}
+
+$bodyClass = 'page-room';
+if ($testClock) {
+    $bodyClass .= ' page-room--test-clock';
+}
+if ($hasOverride) {
+    $bodyClass .= ' page-room--override';
 }
 ?>
 <!DOCTYPE html>
@@ -70,7 +92,7 @@ if ($error === null) {
     <link rel="stylesheet" href="assets/tv.css?v=<?= $cssVersion ?>">
 </head>
 <body
-    class="page-room<?= $testClock ? ' page-room--test-clock' : '' ?>"
+    class="<?= e($bodyClass) ?>"
     data-room="<?= e($slug) ?>"
     data-timezone="<?= e($timezone) ?>"
 >
@@ -97,12 +119,25 @@ if ($error === null) {
     <?php endif; ?>
 
     <div class="page-room__body">
-        <?php if ($error !== null): ?>
+        <?php if ($hasOverride): ?>
+            <div class="page-room__override">
+                <?php
+                $messages = $overrideMessages;
+                $modifier = 'override';
+                require __DIR__ . '/templates/partials/room-messages.php';
+                if ($wifiOverride && $wifi !== null) {
+                    require __DIR__ . '/templates/partials/wifi-qr.php';
+                }
+                ?>
+            </div>
+        <?php elseif ($error !== null): ?>
             <div class="error-banner" role="alert"><?= e($error) ?></div>
         <?php else: ?>
             <div class="hero-row">
                 <?php
                 $heroPartial = __DIR__ . '/templates/partials/hero.php';
+                $showSpeakerAvatars = !array_key_exists('show_speaker_avatars', $config)
+                    || !empty($config['show_speaker_avatars']);
                 $label = 'Now';
                 $modifier = 'now';
                 $slot = $view['now'];
@@ -146,6 +181,19 @@ if ($error === null) {
                     </ul>
                 <?php endif; ?>
             </main>
+
+            <?php if ($belowMessages !== [] || $wifiBelow): ?>
+                <div class="page-room__below<?= $belowMessages === [] ? ' page-room__below--wifi-only' : '' ?>">
+                    <?php
+                    $messages = $belowMessages;
+                    $modifier = 'below';
+                    require __DIR__ . '/templates/partials/room-messages.php';
+                    if ($wifiBelow && $wifi !== null) {
+                        require __DIR__ . '/templates/partials/wifi-qr.php';
+                    }
+                    ?>
+                </div>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 
@@ -163,6 +211,18 @@ if ($error === null) {
 
     <?php if (!$testClock): ?>
         <script src="assets/clock.js"></script>
+    <?php endif; ?>
+    <?php if ($loadWifiScripts): ?>
+        <?php
+        $qrJsVersion = is_file(__DIR__ . '/assets/qrcode-generator.min.js')
+            ? (int) filemtime(__DIR__ . '/assets/qrcode-generator.min.js')
+            : 1;
+        $wifiJsVersion = is_file(__DIR__ . '/assets/wifi-qr.js')
+            ? (int) filemtime(__DIR__ . '/assets/wifi-qr.js')
+            : 1;
+        ?>
+        <script src="assets/qrcode-generator.min.js?v=<?= $qrJsVersion ?>"></script>
+        <script src="assets/wifi-qr.js?v=<?= $wifiJsVersion ?>"></script>
     <?php endif; ?>
 </body>
 </html>

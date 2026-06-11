@@ -10,7 +10,7 @@ declare(strict_types=1);
 
 <section class="admin-section" id="admin-users">
     <h2>Admin users</h2>
-    <p class="hint">Accounts are stored in <code>data/admin/users.json</code> (gitignored). Passwords are bcrypt hashes.</p>
+    <p class="hint">Manage who can sign in to this dashboard.</p>
 
     <?php if ($error !== null): ?>
         <p class="login-error"><?= e($error) ?></p>
@@ -46,8 +46,8 @@ declare(strict_types=1);
                                     <input type="hidden" name="action" value="change_password">
                                     <input type="hidden" name="user_id" value="<?= e($user['id']) ?>">
 
-                                    <?php if (!$isSelf): ?>
-                                        <label>Your current password</label>
+                                    <?php if ($isSelf): ?>
+                                        <label>Current password</label>
                                         <input type="password" name="current_password" autocomplete="current-password" required>
                                     <?php endif; ?>
 
@@ -110,7 +110,7 @@ declare(strict_types=1);
         <label for="new_password_confirm">Confirm password</label>
         <input type="password" id="new_password_confirm" name="password_confirm" autocomplete="new-password" minlength="10" required>
 
-        <p class="hint">Usernames are lowercase letters, numbers, dots, underscores, and hyphens (3–32 characters).</p>
+        <p class="hint">Lowercase letters, numbers, dots, underscores, and hyphens (3–32 characters). Password at least 10 characters.</p>
 
         <div class="admin-actions">
             <button type="submit" class="primary">Create user</button>
@@ -118,4 +118,4 @@ declare(strict_types=1);
     </form>
 </section>
 
-<p><a href="index.php">&larr; Back to dashboard</a></p>
+<p class="admin-back-link"><a href="index.php">&larr; Back to dashboard</a></p>

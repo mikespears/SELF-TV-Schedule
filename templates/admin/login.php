@@ -23,10 +23,8 @@ $eventTitle = (string) ($config['event_title'] ?? 'Conference');
 
         <?php if ($setupMode): ?>
             <p class="hint">No admin users exist yet. Create the first account to continue.</p>
-            <?php if ($setupTokenRequired): ?>
-                <p class="hint">Enter the setup token from <code>data/admin/setup.token</code> on the server.</p>
-            <?php else: ?>
-                <p class="login-error">Create <code>data/admin/setup.token</code> on the server (random secret) before opening this page publicly.</p>
+            <?php if (!$setupTokenRequired): ?>
+                <p class="login-error">First-time setup is not enabled. Your server administrator must enable it before you can create an account.</p>
             <?php endif; ?>
         <?php endif; ?>
 
@@ -36,12 +34,16 @@ $eventTitle = (string) ($config['event_title'] ?? 'Conference');
             <p class="login-error">Sign-in is temporarily locked. Try again in <?= (int) max(1, ceil($lockSeconds / 60)) ?> minute(s).</p>
         <?php endif; ?>
 
-        <?php if ($setupMode): ?>
+        <?php if ($setupMode && $setupTokenRequired): ?>
             <form method="post" class="admin-form">
                 <?= $auth->csrfField() ?>
                 <input type="hidden" name="form" value="setup">
+
+                <label for="setup_token">Setup token</label>
+                <input type="password" id="setup_token" name="setup_token" autocomplete="off" required autofocus>
+
                 <label for="username">Username</label>
-                <input type="text" id="username" name="username" autocomplete="username" pattern="[a-z0-9._-]{3,32}" required<?= $setupTokenRequired ? '' : ' autofocus' ?>>
+                <input type="text" id="username" name="username" autocomplete="username" pattern="[a-z0-9._-]{3,32}" required>
 
                 <label for="password">Password</label>
                 <input type="password" id="password" name="password" autocomplete="new-password" minlength="10" required>
@@ -49,13 +51,13 @@ $eventTitle = (string) ($config['event_title'] ?? 'Conference');
                 <label for="password_confirm">Confirm password</label>
                 <input type="password" id="password_confirm" name="password_confirm" autocomplete="new-password" minlength="10" required>
 
-                <p class="hint">Password must be at least 10 characters.</p>
+                <p class="hint">Use the one-time setup token from your server administrator. Password must be at least 10 characters.</p>
 
                 <div class="admin-actions">
                     <button type="submit" class="primary">Create account</button>
                 </div>
             </form>
-        <?php else: ?>
+        <?php elseif (!$setupMode): ?>
             <form method="post" class="admin-form">
                 <?= $auth->csrfField() ?>
                 <label for="username">Username</label>

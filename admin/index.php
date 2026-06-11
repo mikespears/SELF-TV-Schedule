@@ -50,6 +50,7 @@ $testNowQuery = adminTestNowQuery(
 );
 
 $pageTitle = 'Dashboard';
+$adminSidebar = true;
 
 ob_start();
 require __DIR__ . '/../templates/admin/sections.php';

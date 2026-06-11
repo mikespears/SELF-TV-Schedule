@@ -32,19 +32,9 @@ final class Security
 
     public static function clientIp(): string
     {
-        $candidates = [
-            $_SERVER['REMOTE_ADDR'] ?? '',
-            $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '',
-        ];
-
-        foreach ($candidates as $raw) {
-            if (!is_string($raw) || $raw === '') {
-                continue;
-            }
-            $ip = trim(explode(',', $raw)[0]);
-            if (filter_var($ip, FILTER_VALIDATE_IP) !== false) {
-                return $ip;
-            }
+        $ip = trim((string) ($_SERVER['REMOTE_ADDR'] ?? ''));
+        if (filter_var($ip, FILTER_VALIDATE_IP) !== false) {
+            return $ip;
         }
 
         return '0.0.0.0';

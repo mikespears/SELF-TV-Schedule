@@ -7,25 +7,27 @@ This document summarizes the threat model, controls, and deployment checklist fo
 - **Public TVs** load `room.php` and `index.php` without authentication.
 - **Admin** (`admin/`) is password-protected; compromise grants config and user management.
 - **Outbound HTTP** fetches pretalx schedule data based on configured host.
-- **Sensitive files** (`data/admin/users.json`, `data/settings.json`, cache) must not be web-readable.
+- **Sensitive files** under `data/` and schedule cache under `cache/` must not be web-readable.
 
 ## Controls implemented
 
 | Area | Control |
 |------|---------|
-| Admin auth | Per-user bcrypt hashes in `data/admin/users.json` |
+| Admin auth | Per-user password hashes (`password_hash` / `password_verify`) in `data/admin/users.json` |
 | Sessions | `HttpOnly`, `SameSite=Strict`, `Secure` on HTTPS (port 443), ID regeneration on login |
-| Session invalidation | `auth_version` bumped on password change; idle timeout 8 hours |
+| Session invalidation | `auth_version` incremented on password change; idle timeout 8 hours |
 | CSRF | Token on all admin POST forms (including logout) |
 | Login brute force | IP-based lockout in `data/admin/login-rates.json` (5 failures / 15 min) |
-| First-time setup | Requires `data/admin/setup.token` (consumed after first account) |
-| SSRF (pretalx) | HTTPS only, public DNS resolution, no redirects, path prefix tied to `api_base` |
-| URLs in config | HTTPS + public host validation on save and load |
+| Login rate-limit IP | Uses `REMOTE_ADDR` only (not client-supplied `X-Forwarded-For`) |
+| First-time setup | Requires one-time `data/admin/setup.token` (consumed after first account) |
+| SSRF (pretalx) | HTTPS only, public DNS resolution on admin save, no redirects, pagination URLs restricted to configured host/path |
+| URLs in config | HTTPS + public host validation on save; relaxed DNS check at runtime load |
 | XSS | User-facing strings escaped with `e()` in templates |
 | Room slugs | Whitelist via `config['rooms']` keys only |
 | File permissions | Private data written mode `0600`, dirs `0700` |
-| HTTP headers | `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, CSP |
+| HTTP headers | `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, CSP on public and admin pages |
 | Web exposure | `data/.htaccess`, `cache/.htaccess`, `lib/.htaccess`, deny `config.php` / `bootstrap.php` (Apache) |
+| Speaker avatars | HTTPS image URLs only; optional admin toggle |
 
 ## Deployment checklist
 
@@ -40,7 +42,8 @@ This document summarizes the threat model, controls, and deployment checklist fo
    - Complete first-account setup, then verify `setup.token` was removed.
 4. Keep `allow_test_clock` **false** on production TVs.
 5. Run PHP-FPM as a dedicated user; avoid world-readable files under `data/`.
-6. Delete legacy `data/admin.secrets.php` after migration to `users.json`.
+6. Behind a reverse proxy, configure the proxy to pass the real client IP to PHP (`REMOTE_ADDR`) or accept that login rate limits apply per proxy connection.
+7. Delete legacy `data/admin.secrets.php` after migration to `users.json`.
 
 ### nginx snippets
 
@@ -53,10 +56,28 @@ location ~ ^/(config|bootstrap)\.php$ { deny all; }
 
 ## Residual risks
 
-- **Test clock** — When enabled, anyone can pass `?now=` on room URLs. Keep disabled on public TVs.
-- **Host header / proxy** — Configure trusted proxies explicitly; do not forward client `X-Forwarded-Proto` from untrusted sources.
-- **No MFA** — Stolen passwords grant full admin access; use strong passwords and network restriction.
+- **Test clock** — When enabled, anyone can pass a time override on room URLs. Keep disabled on public TVs.
+- **No MFA** — Stolen passwords grant full admin access; use strong passwords and restrict `/admin/` by network where possible.
+- **Admin password reset** — A signed-in admin can reset another user’s password without re-entering their own password (session is the control).
 - **Single-server sessions** — No shared session store; fine for one PHP node.
+
+## Audit notes (2026-06)
+
+Review covered admin auth, pretalx fetch SSRF, config validation, CSP, and template escaping.
+
+**Fixed in this pass**
+
+- Password changes now increment `auth_version` so existing sessions end after a reset.
+- Login rate limiting no longer trusts `X-Forwarded-For` from clients.
+- First-time setup form includes the setup token field (was missing).
+- Admin UI copy no longer exposes filesystem paths or hash implementation details.
+
+**Verified OK**
+
+- pretalx HTTP: no redirects, host/path allowlist on pagination URLs.
+- Cannot disable or delete the last active admin.
+- Own-password change requires current password; other users require only an admin session.
+- CSRF on admin POST including logout.
 
 ## Reporting
 

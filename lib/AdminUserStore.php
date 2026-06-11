@@ -162,6 +162,7 @@ final class AdminUserStore
                 continue;
             }
             $user['password_hash'] = password_hash($newPassword, PASSWORD_DEFAULT);
+            $user['auth_version'] = (int) ($user['auth_version'] ?? 1) + 1;
             $found = true;
             break;
         }

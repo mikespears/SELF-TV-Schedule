@@ -22,6 +22,8 @@ try {
         'test_mode' => saveTestMode($store),
         'event' => saveEvent($store),
         'sponsors' => saveSponsors($store),
+        'messages' => saveMessages($store),
+        'wifi' => saveWifi($store),
         'rooms' => saveRooms($store),
         'import_rooms_from_pretalx' => importRoomsFromPretalx($store),
         'pretalx' => savePretalx($store),
@@ -60,6 +62,7 @@ function saveEvent(ConfigStore $store): void
         'timezone' => $_POST['timezone'] ?? '',
         'refresh_seconds' => $_POST['refresh_seconds'] ?? '',
         'cache_ttl_seconds' => $_POST['cache_ttl_seconds'] ?? '',
+        'show_speaker_avatars' => isset($_POST['show_speaker_avatars']),
         'event_logo' => [
             'src' => $_POST['event_logo_src'] ?? '',
             'alt' => $_POST['event_logo_alt'] ?? '',
@@ -104,6 +107,64 @@ function saveSponsors(ConfigStore $store): void
     }
 
     $store->mergeAndSave(['sponsors' => $sponsors]);
+}
+
+/** @param ConfigStore $store */
+function saveMessages(ConfigStore $store): void
+{
+    $titles = $_POST['message_title'] ?? [];
+    $bodies = $_POST['message_body'] ?? [];
+    $placements = $_POST['message_placement'] ?? [];
+    $scopes = $_POST['message_scope'] ?? [];
+    $roomPicks = $_POST['message_rooms'] ?? [];
+    $enabled = $_POST['message_enabled'] ?? [];
+
+    if (!is_array($titles) || !is_array($bodies) || !is_array($placements) || !is_array($scopes)) {
+        throw new InvalidArgumentException('Invalid message data.');
+    }
+
+    $messages = [];
+    $count = max(count($titles), count($bodies), count($placements), count($scopes));
+
+    for ($i = 0; $i < $count; $i++) {
+        $scope = (string) ($scopes[$i] ?? 'all');
+        $rooms = 'all';
+        if ($scope === 'rooms') {
+            $picked = is_array($roomPicks[$i] ?? null) ? $roomPicks[$i] : [];
+            $rooms = array_values(array_filter(array_map(
+                static fn ($slug): string => trim((string) $slug),
+                $picked
+            )));
+        }
+
+        $messages[] = [
+            'title' => $titles[$i] ?? '',
+            'body' => $bodies[$i] ?? '',
+            'placement' => $placements[$i] ?? 'below',
+            'rooms' => $rooms,
+            'enabled' => is_array($enabled) && isset($enabled[$i]),
+        ];
+    }
+
+    $store->mergeAndSave(['messages' => $messages]);
+}
+
+/** @param ConfigStore $store */
+function saveWifi(ConfigStore $store): void
+{
+    $store->mergeAndSave([
+        'wifi' => [
+            'enabled' => isset($_POST['wifi_enabled']),
+            'ssid' => $_POST['wifi_ssid'] ?? '',
+            'password' => $_POST['wifi_password'] ?? '',
+            'security' => $_POST['wifi_security'] ?? 'WPA',
+            'hidden' => isset($_POST['wifi_hidden']),
+            'rooms' => 'all',
+            'placement' => 'below',
+            'label' => $_POST['wifi_label'] ?? 'WiFi',
+            'show_password' => isset($_POST['wifi_show_password']),
+        ],
+    ]);
 }
 
 /** @param ConfigStore $store */
@@ -231,6 +292,8 @@ function anchorForAction(string $action): ?string
         'test_mode' => 'test-mode',
         'event' => 'event',
         'sponsors' => 'sponsors',
+        'messages' => 'messages',
+        'wifi' => 'wifi',
         'rooms' => 'rooms',
         'import_rooms_from_pretalx' => 'rooms',
         'pretalx' => 'pretalx',
@@ -244,6 +307,8 @@ function flashMessageForAction(string $action): string
     return match ($action) {
         'clear_cache' => 'Schedule cache cleared.',
         'import_rooms_from_pretalx' => 'Rooms imported from pretalx.',
+        'messages' => 'Messages saved.',
+        'wifi' => 'WiFi settings saved.',
         default => 'Settings saved.',
     };
 }

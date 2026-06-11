@@ -116,31 +116,62 @@ final class ScheduleService
         return '';
     }
 
-    /** @param array<string, mixed> $slot */
-    public function slotSpeakers(array $slot): string
+    /**
+     * @param array<string, mixed> $slot
+     * @return list<array{name: string, avatar_url?: string}>
+     */
+    public function slotSpeakerProfiles(array $slot): array
     {
         $submission = $slot['submission'] ?? null;
         if (!is_array($submission)) {
-            return '';
+            return [];
         }
 
         $speakers = $submission['speakers'] ?? [];
         if (!is_array($speakers) || $speakers === []) {
-            return '';
+            return [];
         }
 
-        $names = [];
+        $profiles = [];
         foreach ($speakers as $speaker) {
             if (!is_array($speaker)) {
                 continue;
             }
-            $name = (string) ($speaker['name'] ?? '');
-            if ($name !== '') {
-                $names[] = $name;
+            $name = trim((string) ($speaker['name'] ?? ''));
+            if ($name === '') {
+                continue;
             }
+
+            $entry = ['name' => $name];
+            $avatar = trim((string) ($speaker['avatar_url'] ?? ''));
+            if ($avatar !== '' && $this->isAllowedSpeakerAvatarUrl($avatar)) {
+                $entry['avatar_url'] = $avatar;
+            }
+
+            $profiles[] = $entry;
         }
 
+        return $profiles;
+    }
+
+    /** @param array<string, mixed> $slot */
+    public function slotSpeakers(array $slot): string
+    {
+        $names = array_map(
+            static fn (array $profile): string => $profile['name'],
+            $this->slotSpeakerProfiles($slot)
+        );
+
         return implode(', ', $names);
+    }
+
+    private function isAllowedSpeakerAvatarUrl(string $url): bool
+    {
+        if (!filter_var($url, FILTER_VALIDATE_URL)) {
+            return false;
+        }
+
+        return strtolower((string) parse_url($url, PHP_URL_SCHEME)) === 'https';
     }
 
     /** @param array<string, mixed> $slot */
@@ -191,7 +222,7 @@ final class ScheduleService
         $raw = $slot['start'] ?? null;
 
         return is_string($raw) && $raw !== ''
-            ? new DateTimeImmutable($raw)->setTimezone($this->timezone)
+            ? (new DateTimeImmutable($raw))->setTimezone($this->timezone)
             : null;
     }
 
@@ -201,7 +232,7 @@ final class ScheduleService
         $raw = $slot['end'] ?? null;
 
         return is_string($raw) && $raw !== ''
-            ? new DateTimeImmutable($raw)->setTimezone($this->timezone)
+            ? (new DateTimeImmutable($raw))->setTimezone($this->timezone)
             : null;
     }
 }

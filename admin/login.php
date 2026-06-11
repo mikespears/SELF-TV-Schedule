@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($setupMode && ($_POST['form'] ?? '') === 'setup') {
         try {
             if (!$setupToken->isRequired()) {
-                throw new InvalidArgumentException('Create data/admin/setup.token on the server before running setup.');
+                throw new InvalidArgumentException('First-time setup is not enabled on this server.');
             }
             if (!$setupToken->verify($_POST['setup_token'] ?? null)) {
                 throw new InvalidArgumentException('Invalid setup token.');
